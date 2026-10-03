@@ -1,0 +1,19 @@
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
+
+OUTPUT_DIR = ROOT / "output"
+MUSIC_DIR = ROOT / "assets" / "music"
+YT_CLIENT_SECRET = ROOT / "client_secret.json"
+YT_TOKEN = ROOT / "token.json"
+
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
+MODEL = os.getenv("ACG_MODEL", "claude-opus-5-5")
+VOICE = os.getenv("ACG_VOICE", "en-US-AndrewNeural")
+YT_CATEGORY_ID = os.getenv("YT_CATEGORY_ID", "22")  # 22 = People & Blogs, 27 = Education
+
+WIDTH, HEIGHT, FPS = 1080, 1920, 30
