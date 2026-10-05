@@ -39,8 +39,8 @@ def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, w
     else:
         _send_text(header + "\n⚠️ Video is over 50 MB - download it from the GitHub Actions run instead.")
     # Each caption in its own message inside <code>, so one tap copies it.
-    _send_text(f"📱 <b>TikTok caption</b> (tap to copy)\n<code>{html.escape(pkg.tiktok.caption)}</code>")
-    _send_text(f"📸 <b>Instagram caption</b> (tap to copy)\n<code>{html.escape(pkg.instagram.caption)}</code>")
+    _send_text(f"📱 <b>TikTok caption</b> (tap to copy)\n<code>{html.escape(pkg.tiktok.full_caption())}</code>")
+    _send_text(f"📸 <b>Instagram caption</b> (tap to copy)\n<code>{html.escape(pkg.instagram.full_caption())}</code>")
     _send_text("✅ Cover: pick the first frame (title is on it). Turn on the AI-content label on both apps.")
 
 

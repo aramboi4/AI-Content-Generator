@@ -48,8 +48,15 @@ class YouTubePost(BaseModel):
 
 class SocialPost(BaseModel):
     on_screen_title: str = Field(description="Short text-overlay/cover title (max 6 words)")
-    caption: str = Field(description="Full post caption including hashtags at the end")
+    caption: str = Field(description="Full post caption, ending with the hashtags (they must appear in this text)")
     hashtags: list[str] = Field(description="The hashtags used, each starting with '#'")
+
+    def full_caption(self) -> str:
+        """Caption ready to paste: appends any hashtags the model left out of the caption text."""
+        present = {w.lower().rstrip(".,!?") for w in self.caption.split() if w.startswith("#")}
+        tags = [t if t.startswith("#") else f"#{t}" for t in self.hashtags]
+        missing = [t for t in tags if t.lower() not in present]
+        return f"{self.caption.rstrip()}\n\n{' '.join(missing)}" if missing else self.caption
 
 
 class VideoPackage(BaseModel):

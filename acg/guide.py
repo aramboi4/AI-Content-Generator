@@ -28,7 +28,7 @@ so just pick the **first frame** as the cover on each app - no need to add text.
 
 **Caption (copy-paste):**
 ```
-{tt.caption}
+{tt.full_caption()}
 ```
 Checklist:
 - [ ] Turn on **"AI-generated content"** under More options before posting
@@ -39,7 +39,7 @@ Checklist:
 
 **Caption (copy-paste):**
 ```
-{ig.caption}
+{ig.full_caption()}
 ```
 Checklist:
 - [ ] Turn on the **AI label** (Advanced settings > "Add AI label")
