@@ -12,6 +12,7 @@ YT_CLIENT_SECRET = ROOT / "client_secret.json"
 YT_TOKEN = ROOT / "token.json"
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 YT_API_KEY = os.getenv("YT_API_KEY", "")
 # Gemini Google-search grounding is not included in the free tier; set to 1 if your key has it.

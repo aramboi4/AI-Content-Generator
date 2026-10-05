@@ -1,4 +1,4 @@
-"""Gemini (free tier) calls: live trend research, then the script + per-platform post copy."""
+﻿"""Gemini (free tier) calls: live trend research, then the script + per-platform post copy."""
 import time
 from datetime import date
 
@@ -114,7 +114,7 @@ Trend research (collected today):
 Script rules:
 {STYLE_RULES[style].format(words=words)}
 - Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
-- visual_query must describe footage that likely exists on a stock site (Pexels).
+- visual_query must describe footage that likely exists on a stock site (Pixabay/Pexels).
 
 Post copy rules:
 - Use hashtags from the research where they genuinely fit; mix broad + niche tags.

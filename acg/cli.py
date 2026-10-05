@@ -16,7 +16,7 @@ def make(args: argparse.Namespace) -> None:
     if not config.GEMINI_API_KEY:
         sys.exit("GEMINI_API_KEY is not set - add it to .env (free key: https://aistudio.google.com/apikey)")
 
-    from .footage import fetch_clip
+    from .footage import fetch_clip, provider
     from .guide import write_guide
     from .media import concat_audio, final_render, render_segment, write_captions
     from .trends import youtube_trends
@@ -55,8 +55,14 @@ def make(args: argparse.Namespace) -> None:
     voices = synthesize_scenes([s.narration for s in pkg.scenes], args.voice, workdir, rate)
 
     print("4/6 Fetching stock footage and rendering scenes...")
-    if not config.PEXELS_API_KEY:
-        print("    PEXELS_API_KEY not set - using plain backgrounds.")
+    source = provider()
+    if not source:
+        print("    PIXABAY_API_KEY not set - using plain backgrounds.")
+    else:  # Pixabay/Pexels ask that the footage source be credited
+        pkg.youtube.description += f"
+
+Stock footage: {source}"
+        (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
     used: set[int] = set()
     segments, words, t = [], [], 0.0
     for i, (scene, v) in enumerate(zip(pkg.scenes, voices)):

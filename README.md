@@ -5,7 +5,7 @@ Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels)
 1. **Trend research** – pulls the most-viewed recent Shorts in your niche from YouTube (their hashtags and tags), plus optional Gemini web search (`ACG_WEB_SEARCH=1`, which isn't included in Gemini's free tier)
 2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags
 3. **Voiceover** – free Microsoft neural voices via `edge-tts`, with word timings
-4. **Footage** – free vertical stock clips from Pexels
+4. **Footage** – free stock clips from Pixabay (or Pexels), cropped to vertical
 5. **Render** – 1080×1920 video with slow zoom, pop-in captions, optional background music
 6. **Publish** – auto-upload to YouTube; a `POSTING_GUIDE.md` with copy-paste captions for TikTok and Instagram
 
@@ -20,7 +20,7 @@ copy .env.example .env   # then fill in the keys
 All keys are free and none needs a credit card:
 
 - `GEMINI_API_KEY` – required. Get it from https://aistudio.google.com/apikey
-- `PEXELS_API_KEY` – recommended, for stock footage. Get it from https://www.pexels.com/api/
+- `PIXABAY_API_KEY` – recommended, for stock footage. Sign up at https://pixabay.com and the key appears on https://pixabay.com/api/docs/ (`PEXELS_API_KEY` also works, but new Pexels keys are paused)
 - `YT_API_KEY` – recommended, for trend data. Use the same Google Cloud project as the YouTube setup below: Credentials → Create credentials → **API key**
 - **Music (optional):** drop royalty-free `.mp3` files into `assets/music/` (e.g. from the YouTube Audio Library). One is picked at random per video.
 
@@ -64,4 +64,4 @@ These are posted by hand. Open the video's `POSTING_GUIDE.md` and copy the capti
 
 ## Cost
 
-Free. Everything runs on free tiers: Gemini, Pexels, the YouTube Data API, edge-tts and local FFmpeg. Google's free-tier limits for Gemini change over time, so check https://aistudio.google.com if you hit a quota error. Gemini's free tier doesn't include Google Search, so web search is off by default and the trend data comes from YouTube. If a free model is busy, the tool retries with another one.
+Free. Everything runs on free tiers: Gemini, Pixabay, the YouTube Data API, edge-tts and local FFmpeg. Google's free-tier limits for Gemini change over time, so check https://aistudio.google.com if you hit a quota error. Gemini's free tier doesn't include Google Search, so web search is off by default and the trend data comes from YouTube. If a free model is busy, the tool retries with another one.
