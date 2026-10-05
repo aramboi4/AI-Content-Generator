@@ -18,6 +18,11 @@ def recent_topics(style: str, n: int = 80) -> list[str]:
     return [e["topic"] for e in load() if e.get("style") == style][-n:]
 
 
+def recent_hooks(n: int = 15) -> list[str]:
+    """Opening lines of recent videos (any style), so new ones don't start the same way."""
+    return [e["hook"] for e in load() if e.get("hook")][-n:]
+
+
 def add(entry: dict) -> None:
     entries = load()
     entries.append({"date": datetime.now().isoformat(timespec="minutes"), **entry})

@@ -1,4 +1,5 @@
 ﻿"""Gemini (free tier) calls: live trend research, then the script + per-platform post copy."""
+import random
 import time
 from datetime import date
 
@@ -92,24 +93,51 @@ def research_trends(niche: str, topic: str | None) -> str:
 
 STYLE_RULES = {
     "facts": """- 5-8 scenes, about {words} words of narration total.
-- Scene 1 is the hook: a surprising claim or question that stops the scroll within 2 seconds.
+- Scene 1 is the hook and must stop the scroll within 2 seconds (hook type for this video is given below).
 - One fact per scene, building to the most surprising one last.
 - Facts must be accurate and widely verifiable; skip anything you are unsure of.
 - End with a short payoff or a question that invites comments.""",
     "story": """- 6-9 scenes, about {words} words of narration total, told as one short story.
-- Scene 1 is the hook: drop the viewer into a moment of tension or a striking line.
+- Scene 1 is the hook and must pull the viewer in within 2 seconds (hook type for this video is given below).
 - Structure: setup -> struggle -> turning point -> lesson. Keep the lesson to one sentence at the end.
 - Warm, simple, emotional language; no cliches like "little did they know".
 - If it's about a real person or event, every detail must be true and well documented.
-  If it's a parable or fictional, the first scene's narration must make that clear (e.g. "There's an old story...")
+  If it's a parable or fictional, the narration must make that clear within the first two scenes, in natural,
+  varied wording (e.g. "Legend says...", "As the parable goes...", "In a village somewhere, the tale says..."),
   and topic must start with "Parable:". Never present an invented story as true.
 - End with the lesson, then a short question that invites comments.""",
 }
 WORDS_PER_SECOND = {"facts": 2.6, "story": 2.3}
 
 
+HOOKS = {
+    "facts": [
+        "a bold claim that sounds impossible but is true",
+        "a direct question to the viewer about something they think they know",
+        "a 'stop doing X' or 'you've been doing X wrong' line",
+        "a striking number or comparison",
+        "a challenge: 'bet you didn't know this one'",
+        "start mid-fact, with no intro - the most surprising detail first",
+        "a 'what would happen if...' scenario",
+        "a myth the viewer believes, then 'that's wrong'",
+    ],
+    "story": [
+        "drop the viewer into the most tense moment, then rewind",
+        "open with a line of dialogue",
+        "open with the ending or the twist, then explain how it happened",
+        "a vivid sensory detail of one small moment",
+        "a question the main character faced",
+        "a surprising fact about a real person before their story",
+        "a short, striking statement about life that the story will prove",
+        "a time-and-place opener: a specific year, place, and person",
+    ],
+}
+
+
 def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts",
-                  avoid: list[str] = ()) -> VideoPackage:
+                  avoid: list[str] = (), avoid_hooks: list[str] = ()) -> VideoPackage:
+    hook = random.choice(HOOKS[style])
+    recent = "\n".join(f"  - {h}" for h in avoid_hooks)
     words = int(target_seconds * WORDS_PER_SECOND[style])
     prompt = f"""Write a faceless short-form video (vertical, ~{target_seconds}s) for the niche: {niche}.
 Format: {"fun facts" if style == "facts" else "short inspiring story"}
@@ -123,6 +151,9 @@ Trend research (collected today):
 
 Script rules:
 {STYLE_RULES[style].format(words=words)}
+- Hook type for this video: {hook}.
+- Never open with "Did you know", "There's an old story", "Have you ever", "Imagine", or "Think again".
+{"- Recent openings - don't reuse their wording or sentence pattern:" + chr(10) + recent if recent else ""}
 - Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
 - image_prompt: a vivid, concrete, single moment that illustrates the narration (3D cartoon look is added
   automatically - don't mention style). Vary framing across scenes: close-up, medium, wide.

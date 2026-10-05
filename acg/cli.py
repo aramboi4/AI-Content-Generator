@@ -60,7 +60,7 @@ def make(args: argparse.Namespace) -> None:
 
     print("2/6 Writing script, titles, captions and hashtags...")
     pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
-                        avoid=history.recent_topics(args.style))
+                        avoid=history.recent_topics(args.style), avoid_hooks=history.recent_hooks())
 
     workdir = config.OUTPUT_DIR / f"{datetime.now():%Y%m%d-%H%M%S}-{_slug(pkg.topic)}"
     workdir.mkdir(parents=True, exist_ok=True)
@@ -150,7 +150,8 @@ def make(args: argparse.Namespace) -> None:
 
     guide = workdir / "POSTING_GUIDE.md"
     write_guide(pkg, guide, url)
-    history.add({"style": args.style, "topic": pkg.topic, "title": pkg.youtube.title, "youtube": url,
+    history.add({"style": args.style, "topic": pkg.topic, "hook": pkg.scenes[0].narration,
+                 "title": pkg.youtube.title, "youtube": url,
                  "folder": workdir.name})
     if os.getenv("GITHUB_STEP_SUMMARY"):  # show captions on the GitHub Actions run page
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
