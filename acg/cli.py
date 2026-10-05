@@ -1,6 +1,7 @@
 """python -m acg make --niche "space facts" [--topic ...] [--upload]"""
 import argparse
 import os
+import random
 import re
 import sys
 from datetime import datetime, timedelta, timezone
@@ -70,7 +71,11 @@ def make(args: argparse.Namespace) -> None:
 
     print("3/6 Generating voiceover...")
     rate = "+8%" if args.style == "facts" else "-4%"  # stories read slower
-    narrations = [s.narration for s in pkg.scenes] + ([config.OUTRO] if config.OUTRO and not args.no_outro else [])
+    outro_text = None
+    if config.OUTROS and not args.no_outro and (args.outro or random.random() < config.OUTRO_CHANCE):
+        outro_text = random.choice(config.OUTROS)
+        print(f"    ending: {outro_text!r}")
+    narrations = [s.narration for s in pkg.scenes] + ([outro_text] if outro_text else [])
     voices = synthesize_scenes(narrations, args.voice, workdir, rate)
     outro = voices[len(pkg.scenes):]
 
@@ -129,7 +134,7 @@ def make(args: argparse.Namespace) -> None:
     concat_audio([v["audio"] for v in voices], narration)
     captions = workdir / "captions.ass"
     write_captions(words, captions, style=args.caption_style, title=pkg.tiktok.on_screen_title,
-                   outro=(outro_at, t, config.OUTRO) if outro_at is not None else None)
+                   outro=(outro_at, t, outro_text) if outro_at is not None else None)
     video = workdir / "video.mp4"
     final_render(segments, narration, captions, video)
 
@@ -194,7 +199,8 @@ def main() -> None:
     m.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     m.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time (ACG_TZ, default Asia/Manila)")
-    m.add_argument("--no-outro", action="store_true", help='Skip the "follow for more" ending')
+    m.add_argument("--outro", action="store_true", help='Always add the "follow for more" ending (default: 50%% chance)')
+    m.add_argument("--no-outro", action="store_true", help='Never add the "follow for more" ending')
     m.add_argument("--keep-temp", action="store_true", help="Keep intermediate files")
     u = sub.add_parser("upload", help="Upload an already-made video folder to YouTube")
     u.add_argument("folder", help="Folder under output/ containing video.mp4 and package.json")

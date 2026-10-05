@@ -72,7 +72,7 @@ Before creating `token.json`, set the OAuth app to **In production** (Google Clo
 
 To test without waiting: Actions → **Daily videos** → **Run workflow** (choose style, upload on/off).
 
-Every video ends with "Follow for more videos like this!" (spoken + on screen). Change it with `ACG_OUTRO`, or skip it with `--no-outro`.
+About half of the videos (picked at random) end with a ~5s call to action, spoken and shown on screen: either "Follow for more videos like this!" or "Want to watch more videos? Follow for more!". Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
 
 ## AI images setup (one time, free)
 

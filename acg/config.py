@@ -22,7 +22,10 @@ YT_API_KEY = os.getenv("YT_API_KEY", "")
 WEB_SEARCH = os.getenv("ACG_WEB_SEARCH", "0") == "1"
 MODEL = os.getenv("ACG_MODEL", "gemini-flash-latest")
 VOICE = os.getenv("ACG_VOICE", "en-US-AndrewNeural")
-OUTRO = os.getenv("ACG_OUTRO", "Follow for more videos like this!")  # spoken + shown at the end; "" disables
+# Ending call to action: added to OUTRO_CHANCE of videos, one phrase picked at random ("|"-separated).
+OUTROS = [p.strip() for p in os.getenv(
+    "ACG_OUTROS", "Follow for more videos like this!|Want to watch more videos? Follow for more!").split("|") if p.strip()]
+OUTRO_CHANCE = float(os.getenv("ACG_OUTRO_CHANCE", "0.5"))
 TIMEZONE = os.getenv("ACG_TZ", "Asia/Manila")  # for --publish-next
 YT_CATEGORY_ID = os.getenv("YT_CATEGORY_ID", "22")  # 22 = People & Blogs, 27 = Education
 
