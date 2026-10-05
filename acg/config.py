@@ -26,6 +26,8 @@ VOICE = os.getenv("ACG_VOICE", "en-US-AndrewNeural")
 OUTROS = [p.strip() for p in os.getenv(
     "ACG_OUTROS", "Follow for more videos like this!|Want to watch more videos? Follow for more!").split("|") if p.strip()]
 OUTRO_CHANCE = float(os.getenv("ACG_OUTRO_CHANCE", "0.5"))
+TREND_LANGUAGE = os.getenv("ACG_TREND_LANGUAGE", "en")  # audience for YouTube trend lookups
+TREND_REGION = os.getenv("ACG_TREND_REGION", "US")
 TIMEZONE = os.getenv("ACG_TZ", "Asia/Manila")  # for --publish-next
 YT_CATEGORY_ID = os.getenv("YT_CATEGORY_ID", "22")  # 22 = People & Blogs, 27 = Education
 
