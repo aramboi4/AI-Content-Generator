@@ -99,6 +99,24 @@ def make(args: argparse.Namespace) -> None:
     print(f"\nDone: {video}\nPosting guide: {workdir / 'POSTING_GUIDE.md'}  ({t:.0f}s video)")
 
 
+def upload_existing(args: argparse.Namespace) -> None:
+    from pathlib import Path
+
+    from .guide import write_guide
+    from .writer import VideoPackage
+    from .youtube import upload
+
+    folder = Path(args.folder)
+    video, pkg_file = folder / "video.mp4", folder / "package.json"
+    if not video.exists() or not pkg_file.exists():
+        sys.exit(f"{folder} needs video.mp4 and package.json (made by 'acg make').")
+    pkg = VideoPackage.model_validate_json(pkg_file.read_text(encoding="utf-8-sig"))
+    print(f"Uploading '{pkg.youtube.title}' ({args.privacy})...")
+    url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=args.publish_at)
+    write_guide(pkg, folder / "POSTING_GUIDE.md", url)
+    print(f"Done: {url}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="acg", description="Faceless short-form video generator")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -113,9 +131,13 @@ def main() -> None:
     m.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     m.add_argument("--keep-temp", action="store_true", help="Keep intermediate files")
+    u = sub.add_parser("upload", help="Upload an already-made video folder to YouTube")
+    u.add_argument("folder", help="Folder under output/ containing video.mp4 and package.json")
+    u.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
+    u.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     args = p.parse_args()
     try:
-        make(args)
+        make(args) if args.cmd == "make" else upload_existing(args)
     except KeyboardInterrupt:
         sys.exit(130)
 

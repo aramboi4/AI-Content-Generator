@@ -38,6 +38,9 @@ FFmpeg is bundled through `imageio-ffmpeg`, so you don't need to install it sepa
 # Specific topic, upload to YouTube as private
 .\.venv\Scripts\python -m acg make --niche "fun facts" --topic "weird facts about octopuses" --upload
 
+# Review first, then upload a finished video folder
+.\.venv\Scripts\python -m acg upload output61006-011706-parable-the-old-carpenter --privacy public
+
 # Schedule a public YouTube release (UTC)
 .\.venv\Scripts\python -m acg make --niche "short inspiring stories" --style story --upload --publish-at 2026-10-07T17:00:00Z
 ```
