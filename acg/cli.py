@@ -44,6 +44,15 @@ def _publish_at(args: argparse.Namespace) -> str | None:
     return _next_publish_time(args.publish_next) if args.publish_next else args.publish_at
 
 
+# Current step and non-fatal problems, reported to Telegram by main().
+STATE: dict = {"stage": "setup", "warnings": []}
+
+
+def _warn(msg: str) -> None:
+    print(f"    WARNING: {msg}")
+    STATE["warnings"].append(msg)
+
+
 def make(args: argparse.Namespace) -> None:
     if not config.GEMINI_API_KEY:
         sys.exit("GEMINI_API_KEY is not set - add it to .env (free key: https://aistudio.google.com/apikey)")
@@ -58,21 +67,25 @@ def make(args: argparse.Namespace) -> None:
 
     research = ""
     if not args.no_research:
+        STATE["stage"] = "research"
         print("1/6 Researching current trends (YouTube + web search)...")
         parts = []
         try:
             yt = youtube_trends(args.niche)
             if yt:
                 parts.append("## What's performing on YouTube Shorts right now\n" + yt)
+            elif config.YT_API_KEY:
+                _warn("YouTube trend lookup returned nothing - hashtags weren't based on trend data.")
             else:
-                print("    YT_API_KEY not set or no results - skipping YouTube trend data.")
+                print("    YT_API_KEY not set - skipping YouTube trend data.")
         except Exception as e:
-            print(f"    YouTube trend lookup failed ({e}) - continuing.")
+            _warn(f"YouTube trend lookup failed ({str(e)[:150]}) - hashtags weren't based on trend data.")
         web = research_trends(args.niche, args.topic) if config.WEB_SEARCH else ""
         if web:
             parts.append("## Web search findings\n" + web)
         research = "\n\n".join(parts)
 
+    STATE["stage"] = "script"
     print("2/6 Writing script, titles, captions and hashtags...")
     pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
                         avoid=history.recent_topics(args.style), avoid_hooks=history.recent_hooks())
@@ -84,6 +97,7 @@ def make(args: argparse.Namespace) -> None:
         (workdir / "research.md").write_text(research, encoding="utf-8")
     print(f"    Topic: {pkg.topic}  ({len(pkg.scenes)} scenes)  -> {workdir}")
 
+    STATE["stage"] = "voice"
     print("3/6 Generating voiceover...")
     rate = "+8%" if args.style == "facts" else "-4%"  # stories read slower
     outro_text = None
@@ -96,6 +110,7 @@ def make(args: argparse.Namespace) -> None:
 
     from . import images
 
+    STATE["stage"] = "footage"
     visuals = args.visuals
     if visuals == "ai" and not images.available():
         sys.exit("--visuals ai needs CF_ACCOUNT_ID and CF_API_TOKEN in .env (see README).")
@@ -110,12 +125,13 @@ def make(args: argparse.Namespace) -> None:
     else:
         print("4/6 Fetching stock footage and rendering scenes...")
         if not source:
-            print("    PIXABAY_API_KEY not set - using plain backgrounds.")
+            _warn("No footage key (PIXABAY_API_KEY) - the video uses plain backgrounds.")
     if visuals == "stock" and source:  # Pixabay/Pexels ask that the footage source be credited
         pkg.youtube.description += f"\n\nStock footage: {source}"
         (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
     used: set[int] = set()
     segments, words, t, last_clip = [], [], 0.0, None
+    image_fails, footage_errors, unmatched = 0, [], 0
     for i, (scene, v) in enumerate(zip(pkg.scenes, voices)):
         clip = None
         if visuals == "ai":
@@ -124,9 +140,14 @@ def make(args: argparse.Namespace) -> None:
                     f"{scene.image_prompt}. The character looks exactly like the character in image 0: {pkg.character}",
                     workdir / f"scene_{i:02d}.jpg", refs=[char_ref], seed=args.seed + i + 1)
             except RuntimeError as e:  # e.g. daily free allowance used up: fall back to stock footage
+                image_fails += 1
                 print(f"    scene {i + 1}: image failed ({str(e)[:100]})")
         if clip is None and source:
-            clip = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4")
+            try:
+                clip = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4")
+            except Exception as e:  # footage site down: keep going with the previous clip
+                footage_errors.append(str(e)[:120])
+            unmatched += clip is None
         status = "ok" if clip else "no match, reusing previous" if last_clip else "no match, plain background"
         print(f"    scene {i + 1}: {scene.image_prompt if visuals == 'ai' else scene.visual_queries} -> {status}")
         clip = last_clip = clip or last_clip
@@ -135,6 +156,13 @@ def make(args: argparse.Namespace) -> None:
         segments.append(seg)
         words += [{**w, "start": w["start"] + t, "end": w["end"] + t, "scene": i} for w in v["words"]]
         t += v["duration"]
+    STATE["stage"] = "render"
+    if image_fails:
+        _warn(f"{image_fails} AI image(s) failed (free daily allowance?) - stock footage used instead.")
+    if footage_errors:
+        _warn(f"Footage site errors on {len(footage_errors)} scene(s): {footage_errors[0]}")
+    if unmatched >= max(2, len(pkg.scenes) // 2):
+        _warn(f"No matching footage for {unmatched} of {len(pkg.scenes)} scenes - clips were reused.")
 
     outro_at = None
     if outro:  # call to action over the last clip, shown as a text card instead of captions
@@ -154,6 +182,7 @@ def make(args: argparse.Namespace) -> None:
     final_render(segments, narration, captions, video)
 
     url, publish_at = None, None
+    STATE["stage"] = "upload"
     if args.upload:
         print("6/6 Uploading to YouTube...")
         from .youtube import upload
@@ -176,6 +205,8 @@ def make(args: argparse.Namespace) -> None:
         print("    Sending video + captions to Telegram...")
         try:
             notify.send_video(video, pkg, url, _local_time(publish_at) if publish_at else None)
+            if STATE["warnings"]:
+                notify.send_warnings(f"{args.style.title()} video", STATE["warnings"])
         except Exception as e:  # never fail the run just because the phone notification failed
             print(f"    Telegram send failed: {e}")
     if not args.keep_temp:
@@ -188,6 +219,7 @@ def make(args: argparse.Namespace) -> None:
 def upload_existing(args: argparse.Namespace) -> None:
     from pathlib import Path
 
+    STATE["stage"] = "upload"
     from .guide import write_guide
     from .writer import VideoPackage
     from .youtube import upload
@@ -237,6 +269,23 @@ def main() -> None:
         {"make": make, "upload": upload_existing, "telegram-setup": telegram_setup}[args.cmd](args)
     except KeyboardInterrupt:
         sys.exit(130)
+    except Exception as exc:
+        _report_failure(args, exc)
+        raise
+
+
+def _report_failure(args: argparse.Namespace, exc: Exception) -> None:
+    """Tell the phone what broke. Leaves a marker so the workflow doesn't send a second, vaguer alert."""
+    from . import notify
+    if args.cmd == "telegram-setup" or not notify.enabled():
+        return
+    what = f"{args.style.title()} video" if args.cmd == "make" else "Upload"
+    try:
+        notify.send_failure(what, STATE["stage"], exc)
+        config.OUTPUT_DIR.mkdir(exist_ok=True)
+        (config.OUTPUT_DIR / ".failure_reported").write_text(STATE["stage"], encoding="utf-8")
+    except Exception as e:
+        print(f"Could not send failure alert to Telegram: {e}")
 
 
 if __name__ == "__main__":

@@ -118,3 +118,14 @@ jobs:
             echo "## ⬇️ [Download video.mp4 + posting guide (zip)]($URL)"
             echo "Available for 14 days. Unzip it, then post video.mp4 to TikTok and Instagram with the captions above."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Alert on Telegram if the run failed outside the video code
+        if: failure()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STYLE: ${{ steps.plan.outputs.style }}
+        run: |
+          if [ -f output/.failure_reported ] || [ -z "$TELEGRAM_BOT_TOKEN" ]; then exit 0; fi
+          curl -s -o /dev/null "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=❌ Daily ${STYLE:-video} run failed during setup (before the video was made). Log: ${RUN_URL}"

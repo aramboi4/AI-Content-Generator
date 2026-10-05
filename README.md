@@ -1,4 +1,4 @@
-# AI Content Generator
+﻿# AI Content Generator
 
 Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels) from a niche:
 
@@ -82,6 +82,8 @@ After each video is made, a Telegram bot sends you the video (tap it, then **Sav
 2. Open your new bot (BotFather links to it), press **Start**, and send it any message.
 3. Run `.\.venv\Scripts\python -m acg telegram-setup`, which prints your chat id. Put it in `.env` as `TELEGRAM_CHAT_ID`.
 4. Add both as GitHub secrets: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+
+The bot also alerts you when something breaks: **❌** when a video fails (which step, the likely cause and how to fix it, plus a link to the log), **⚠️** when a video was made but something was degraded (e.g. trend data or footage failed), and a setup-failure alert if the GitHub run breaks before the video code starts.
 
 ## AI images setup (one time, free)
 
