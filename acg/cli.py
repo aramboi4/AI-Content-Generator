@@ -35,7 +35,7 @@ def make(args: argparse.Namespace) -> None:
                 print("    YT_API_KEY not set or no results - skipping YouTube trend data.")
         except Exception as e:
             print(f"    YouTube trend lookup failed ({e}) - continuing.")
-        web = research_trends(args.niche, args.topic)
+        web = research_trends(args.niche, args.topic) if config.WEB_SEARCH else ""
         if web:
             parts.append("## Web search findings\n" + web)
         research = "\n\n".join(parts)

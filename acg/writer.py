@@ -1,13 +1,32 @@
 """Gemini (free tier) calls: live trend research, then the script + per-platform post copy."""
+import time
 from datetime import date
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 from pydantic import BaseModel, Field
 
 from .config import GEMINI_API_KEY, MODEL
 
 client = genai.Client(api_key=GEMINI_API_KEY)
+
+# Free-tier models get busy (503) or rate limited (429); fall back through these.
+MODELS = list(dict.fromkeys([MODEL, "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"]))
+
+
+def _generate(contents: str, config: types.GenerateContentConfig | None = None):
+    last = None
+    for attempt in range(2):
+        for model in MODELS:
+            try:
+                return client.models.generate_content(model=model, contents=contents, config=config)
+            except errors.APIError as e:
+                if e.code not in (429, 500, 503, 504):
+                    raise
+                last = e
+                print(f"    {model} unavailable ({e.code}), trying next model...")
+        time.sleep(20)
+    raise last
 
 
 class Scene(BaseModel):
@@ -56,7 +75,7 @@ def research_trends(niche: str, topic: str | None) -> str:
             model=MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
-        )
+        )  # no fallback loop: search quota is all-or-nothing per account
         return (resp.text or "").strip()
     except Exception as e:  # free-tier quota or grounding not enabled: carry on without it
         print(f"    Web search research unavailable ({type(e).__name__}: {str(e)[:120]}) - continuing without it.")
@@ -104,10 +123,8 @@ Post copy rules:
 - Instagram: 1-3 line caption with a call to action (save/share/comment), then hashtags.
 - YouTube: title must end with #Shorts; description ends with 3-5 hashtags.
 """
-    resp = client.models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=VideoPackage),
+    resp = _generate(
+        prompt, types.GenerateContentConfig(response_mime_type="application/json", response_schema=VideoPackage)
     )
     pkg = resp.parsed if isinstance(resp.parsed, VideoPackage) else None
     if pkg is None:

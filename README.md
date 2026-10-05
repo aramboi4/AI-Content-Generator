@@ -2,7 +2,7 @@
 
 Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels) from a niche:
 
-1. **Trend research** – pulls the most-viewed recent Shorts in your niche from YouTube (their hashtags and tags), plus a Gemini web search for what's trending (hashtags, sounds, formats, platform rules)
+1. **Trend research** – pulls the most-viewed recent Shorts in your niche from YouTube (their hashtags and tags), plus optional Gemini web search (`ACG_WEB_SEARCH=1`, which isn't included in Gemini's free tier)
 2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags
 3. **Voiceover** – free Microsoft neural voices via `edge-tts`, with word timings
 4. **Footage** – free vertical stock clips from Pexels
@@ -64,4 +64,4 @@ These are posted by hand. Open the video's `POSTING_GUIDE.md` and copy the capti
 
 ## Cost
 
-Free. Everything runs on free tiers: Gemini, Pexels, the YouTube Data API, edge-tts and local FFmpeg. Google's free-tier limits for Gemini change over time, so check https://aistudio.google.com if you hit a quota error. If the Gemini web search isn't available on your free tier, the tool skips it and keeps going with the YouTube trend data.
+Free. Everything runs on free tiers: Gemini, Pexels, the YouTube Data API, edge-tts and local FFmpeg. Google's free-tier limits for Gemini change over time, so check https://aistudio.google.com if you hit a quota error. Gemini's free tier doesn't include Google Search, so web search is off by default and the trend data comes from YouTube. If a free model is busy, the tool retries with another one.
