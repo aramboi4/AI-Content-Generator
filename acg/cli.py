@@ -133,7 +133,7 @@ def make(args: argparse.Namespace) -> None:
     narration = workdir / "narration.m4a"
     concat_audio([v["audio"] for v in voices], narration)
     captions = workdir / "captions.ass"
-    write_captions(words, captions, style=args.caption_style, title=pkg.tiktok.on_screen_title,
+    write_captions(words, captions, style=args.caption_style, title="" if args.no_title else pkg.tiktok.on_screen_title,
                    outro=(outro_at, t, outro_text) if outro_at is not None else None)
     video = workdir / "video.mp4"
     final_render(segments, narration, captions, video)
@@ -200,6 +200,7 @@ def main() -> None:
     m.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     m.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time (ACG_TZ, default Asia/Manila)")
+    m.add_argument("--no-title", action="store_true", help="Don't show the title card at the start")
     m.add_argument("--outro", action="store_true", help='Always add the "follow for more" ending (default: 50%% chance)')
     m.add_argument("--no-outro", action="store_true", help='Never add the "follow for more" ending')
     m.add_argument("--keep-temp", action="store_true", help="Keep intermediate files")

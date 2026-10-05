@@ -20,8 +20,11 @@ Video file: `video.mp4`
 
 ---
 
+## Cover
+The video opens with the title **"{tt.on_screen_title}"** already on screen (first 3 seconds),
+so just pick the **first frame** as the cover on each app - no need to add text.
+
 ## TikTok (manual)
-**Cover / on-screen title:** {tt.on_screen_title}
 
 **Caption (copy-paste):**
 ```
@@ -30,10 +33,9 @@ Video file: `video.mp4`
 Checklist:
 - [ ] Turn on **"AI-generated content"** under More options before posting
 - [ ] Optional: add a trending sound from the in-app library at low volume (~5-10%) under the voiceover
-- [ ] Pick a cover frame and add the on-screen title as text
+- [ ] Cover: tap **Edit cover** / **Select cover** and slide to the very start (title frame)
 
 ## Instagram Reels (manual)
-**Cover / on-screen title:** {ig.on_screen_title}
 
 **Caption (copy-paste):**
 ```
@@ -41,6 +43,7 @@ Checklist:
 ```
 Checklist:
 - [ ] Turn on the **AI label** (Advanced settings > "Add AI label")
+- [ ] Cover: on the final screen tap **Edit cover** and choose the first frame (with the title)
 - [ ] Share to Feed: on
 - [ ] Optional: add trending audio from the Reels library at low volume
 
