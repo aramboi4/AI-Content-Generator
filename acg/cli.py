@@ -62,10 +62,12 @@ def make(args: argparse.Namespace) -> None:
         pkg.youtube.description += f"\n\nStock footage: {source}"
         (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
     used: set[int] = set()
-    segments, words, t = [], [], 0.0
+    segments, words, t, last_clip = [], [], 0.0, None
     for i, (scene, v) in enumerate(zip(pkg.scenes, voices)):
-        clip = fetch_clip(scene.visual_query, v["duration"], used, workdir / f"clip_{i:02d}.mp4")
-        print(f"    scene {i + 1}: {scene.visual_query!r} -> {'ok' if clip else 'no footage, plain background'}")
+        clip = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4")
+        status = "ok" if clip else "no match, reusing previous clip" if last_clip else "no match, plain background"
+        print(f"    scene {i + 1}: {scene.visual_queries} -> {status}")
+        clip = last_clip = clip or last_clip
         seg = workdir / f"seg_{i:02d}.mp4"
         render_segment(clip, v["duration"], seg)
         segments.append(seg)

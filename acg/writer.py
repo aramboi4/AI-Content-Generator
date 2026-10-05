@@ -31,7 +31,9 @@ def _generate(contents: str, config: types.GenerateContentConfig | None = None):
 
 class Scene(BaseModel):
     narration: str = Field(description="What the voiceover says in this scene (1-2 short sentences)")
-    visual_query: str = Field(description="2-4 word stock-footage search, concrete and visual, e.g. 'octopus swimming reef'")
+    visual_queries: list[str] = Field(description=(
+        "2-3 stock-footage searches from specific to generic, each 1-2 common words naming something "
+        "visible (noun first), e.g. ['octopus', 'coral reef', 'ocean']"))
 
 
 class YouTubePost(BaseModel):
@@ -93,7 +95,7 @@ STYLE_RULES = {
 - Structure: setup -> struggle -> turning point -> lesson. Keep the lesson to one sentence at the end.
 - Warm, simple, emotional language; no cliches like "little did they know".
 - If it's about a real person or event, every detail must be true and well documented.
-  If it's a parable or fictional, the narration must make that clear (e.g. "There's an old story...")
+  If it's a parable or fictional, the first scene's narration must make that clear (e.g. "There's an old story...")
   and topic must start with "Parable:". Never present an invented story as true.
 - End with the lesson, then a short question that invites comments.""",
 }
@@ -114,7 +116,8 @@ Trend research (collected today):
 Script rules:
 {STYLE_RULES[style].format(words=words)}
 - Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
-- visual_query must describe footage that likely exists on a stock site (Pixabay/Pexels).
+- visual_queries: simple, literal words a stock site (Pixabay/Pexels) would tag - objects, animals, places,
+  people doing common actions. No abstract ideas ("hope", "mistake") and no names.
 
 Post copy rules:
 - Use hashtags from the research where they genuinely fit; mix broad + niche tags.
