@@ -55,9 +55,11 @@ jobs:
             style=facts; upload=true
           fi
           if [ "$style" = story ]; then
-            echo "args=--niche \"short inspiring stories\" --style story --publish-next 08:00" >> "$GITHUB_OUTPUT"
+            echo "niche=short inspiring stories" >> "$GITHUB_OUTPUT"
+            echo "publish=08:00" >> "$GITHUB_OUTPUT"
           else
-            echo "args=--niche \"fun facts\" --style facts --publish-next 20:00" >> "$GITHUB_OUTPUT"
+            echo "niche=fun facts" >> "$GITHUB_OUTPUT"
+            echo "publish=20:00" >> "$GITHUB_OUTPUT"
           fi
           echo "upload=$upload" >> "$GITHUB_OUTPUT"
           echo "style=$style" >> "$GITHUB_OUTPUT"
@@ -74,10 +76,15 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Make video
+        env:
+          NICHE: ${{ steps.plan.outputs.niche }}
+          STYLE: ${{ steps.plan.outputs.style }}
+          PUBLISH: ${{ steps.plan.outputs.publish }}
+          UPLOAD: ${{ steps.plan.outputs.upload }}
         run: |
-          extra=""
-          if [ "${{ steps.plan.outputs.upload }}" = "true" ]; then extra="--upload"; fi
-          eval python -m acg make ${{ steps.plan.outputs.args }} $extra
+          args=(--niche "$NICHE" --style "$STYLE" --publish-next "$PUBLISH")
+          if [ "$UPLOAD" = "true" ]; then args+=(--upload); fi
+          python -m acg make "${args[@]}"
 
       - name: Save history
         if: success()
