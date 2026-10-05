@@ -96,6 +96,7 @@ jobs:
           git pull --rebase -q && git push -q
 
       - name: Keep video + posting guide for TikTok/Instagram
+        id: artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -105,3 +106,13 @@ jobs:
             output/*/POSTING_GUIDE.md
           retention-days: 14
           if-no-files-found: ignore
+
+      - name: Add download link to the run page
+        if: always() && steps.artifact.outputs.artifact-url != ''
+        env:
+          URL: ${{ steps.artifact.outputs.artifact-url }}
+        run: |
+          {
+            echo "## ⬇️ [Download video.mp4 + posting guide (zip)]($URL)"
+            echo "Available for 14 days. Unzip it, then post video.mp4 to TikTok and Instagram with the captions above."
+          } >> "$GITHUB_STEP_SUMMARY"
