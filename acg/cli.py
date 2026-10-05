@@ -59,9 +59,7 @@ def make(args: argparse.Namespace) -> None:
     if not source:
         print("    PIXABAY_API_KEY not set - using plain backgrounds.")
     else:  # Pixabay/Pexels ask that the footage source be credited
-        pkg.youtube.description += f"
-
-Stock footage: {source}"
+        pkg.youtube.description += f"\n\nStock footage: {source}"
         (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
     used: set[int] = set()
     segments, words, t = [], [], 0.0
