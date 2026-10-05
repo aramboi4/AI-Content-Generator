@@ -25,6 +25,21 @@ def _next_publish_time(hhmm: str) -> str:
     return at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _local_time(iso_utc: str) -> str:
+    at = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    return at.astimezone(ZoneInfo(config.TIMEZONE)).strftime("%b %d, %I:%M %p").replace(" 0", " ")
+
+
+def telegram_setup(args: argparse.Namespace) -> None:
+    from . import notify
+    if not config.TELEGRAM_BOT_TOKEN:
+        sys.exit("Add TELEGRAM_BOT_TOKEN to .env first (see README 'Phone delivery').")
+    chat_id = notify.find_chat_id()
+    if not chat_id:
+        sys.exit("No messages found - open your bot in Telegram, press Start (or send 'hi'), then run this again.")
+    print(f"Your TELEGRAM_CHAT_ID is: {chat_id}\nAdd it to .env and as a GitHub secret.")
+
+
 def _publish_at(args: argparse.Namespace) -> str | None:
     return _next_publish_time(args.publish_next) if args.publish_next else args.publish_at
 
@@ -138,7 +153,7 @@ def make(args: argparse.Namespace) -> None:
     video = workdir / "video.mp4"
     final_render(segments, narration, captions, video)
 
-    url = None
+    url, publish_at = None, None
     if args.upload:
         print("6/6 Uploading to YouTube...")
         from .youtube import upload
@@ -156,6 +171,13 @@ def make(args: argparse.Namespace) -> None:
     if os.getenv("GITHUB_STEP_SUMMARY"):  # show captions on the GitHub Actions run page
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
             f.write(guide.read_text(encoding="utf-8") + "\n")
+    from . import notify
+    if notify.enabled():
+        print("    Sending video + captions to Telegram...")
+        try:
+            notify.send_video(video, pkg, url, _local_time(publish_at) if publish_at else None)
+        except Exception as e:  # never fail the run just because the phone notification failed
+            print(f"    Telegram send failed: {e}")
     if not args.keep_temp:
         for p in workdir.glob("*"):
             if p.name.startswith(("clip_", "seg_", "voice_")) or p.suffix == ".txt":
@@ -209,9 +231,10 @@ def main() -> None:
     u.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     u.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     u.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time")
+    sub.add_parser("telegram-setup", help="Print your Telegram chat id (after messaging your bot once)")
     args = p.parse_args()
     try:
-        make(args) if args.cmd == "make" else upload_existing(args)
+        {"make": make, "upload": upload_existing, "telegram-setup": telegram_setup}[args.cmd](args)
     except KeyboardInterrupt:
         sys.exit(130)
 

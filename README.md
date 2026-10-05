@@ -74,6 +74,15 @@ To test without waiting: Actions → **Daily videos** → **Run workflow** (choo
 
 About half of the videos (picked at random) end with a ~5s call to action, spoken and shown on screen: either "Follow for more videos like this!" or "Want to watch more videos? Follow for more!". Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
 
+## Phone delivery (Telegram, free)
+
+After each video is made, a Telegram bot sends you the video (tap it, then **Save to gallery**) and the TikTok and Instagram captions as separate messages (tap to copy), so you can post from your phone.
+
+1. In Telegram, open **@BotFather**, send `/newbot`, and pick a name and a username ending in `bot`. Copy the token it gives you into `.env` as `TELEGRAM_BOT_TOKEN`.
+2. Open your new bot (BotFather links to it), press **Start**, and send it any message.
+3. Run `.\.venv\Scripts\python -m acg telegram-setup`, which prints your chat id. Put it in `.env` as `TELEGRAM_CHAT_ID`.
+4. Add both as GitHub secrets: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+
 ## AI images setup (one time, free)
 
 1. Sign up at https://dash.cloudflare.com/sign-up (free plan, no card needed).

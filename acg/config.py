@@ -16,6 +16,8 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")  # phone delivery of each video + captions
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 YT_API_KEY = os.getenv("YT_API_KEY", "")
 # Gemini Google-search grounding is not included in the free tier; set to 1 if your key has it.
