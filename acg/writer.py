@@ -108,11 +108,13 @@ STYLE_RULES = {
 WORDS_PER_SECOND = {"facts": 2.6, "story": 2.3}
 
 
-def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts") -> VideoPackage:
+def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts",
+                  avoid: list[str] = ()) -> VideoPackage:
     words = int(target_seconds * WORDS_PER_SECOND[style])
     prompt = f"""Write a faceless short-form video (vertical, ~{target_seconds}s) for the niche: {niche}.
 Format: {"fun facts" if style == "facts" else "short inspiring story"}
 Topic: {topic or "pick the best topic from the research below"}
+{"Already covered - pick a clearly different topic (different subject, not just a reworded title): " + "; ".join(avoid) if avoid and not topic else ""}
 
 Trend research (collected today):
 <research>

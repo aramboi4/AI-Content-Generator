@@ -1,4 +1,5 @@
 """Upload a Short to YouTube via the Data API (OAuth, token cached in token.json)."""
+import os
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -14,12 +15,16 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 
 def _credentials() -> Credentials:
+    if not YT_TOKEN.exists() and os.getenv("YT_TOKEN_JSON"):  # CI: token comes from a secret
+        YT_TOKEN.write_text(os.environ["YT_TOKEN_JSON"], encoding="utf-8")
     creds = Credentials.from_authorized_user_file(str(YT_TOKEN), SCOPES) if YT_TOKEN.exists() else None
     if creds and creds.valid:
         return creds
     if creds and creds.expired and creds.refresh_token:
         creds.refresh(Request())
     else:
+        if os.getenv("CI"):
+            raise RuntimeError("YouTube token is missing or revoked - re-run the local sign-in and update the YT_TOKEN_JSON secret.")
         if not YT_CLIENT_SECRET.exists():
             raise FileNotFoundError("client_secret.json not found - see README 'YouTube setup'.")
         creds = InstalledAppFlow.from_client_secrets_file(str(YT_CLIENT_SECRET), SCOPES).run_local_server(port=0)

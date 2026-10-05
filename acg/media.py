@@ -56,8 +56,19 @@ def _ass_time(t: float) -> str:
     return f"{cs // 360000}:{cs // 6000 % 60:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}"
 
 
-def write_captions(words: list[dict], out: Path, per_line: int = 1, title: str = "", title_secs: float = 2.5) -> None:
-    """Big centered pop-in captions (one word at a time by default) plus an optional opening title card."""
+CAPTION_STYLES = {
+    # 3-word groups in a heavy font, lower-middle (the look of the carpenter video)
+    "classic": {"words": 3, "style": "Cap,Archivo Black,92,&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,7,3,2,80,80,620,1"},
+    # one huge word at a time in Anton, plus a purple title card
+    "bold": {"words": 1, "style": "Cap,Anton,200,&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,0,0,0,0,100,100,1,0,1,12,0,2,60,60,560,1"},
+}
+
+
+def write_captions(words: list[dict], out: Path, style: str = "classic", title: str = "", title_secs: float = 2.5,
+                   outro: tuple[float, float, str] | None = None) -> None:
+    """Pop-in word-group captions; the "bold" style also shows an opening title card."""
+    per_line = CAPTION_STYLES[style]["words"]
+    title = title if style == "bold" else ""
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {WIDTH}
@@ -66,7 +77,8 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Anton,{200 if per_line == 1 else 130},&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,0,0,0,0,100,100,1,0,1,12,0,2,60,60,560,1
+Style: {CAPTION_STYLES[style]["style"]}
+Style: Outro,{"Anton" if style == "bold" else "Archivo Black"},104,&H00FFFFFF,&H00FFFFFF,&H40642D4A,&H00000000,0,0,0,0,100,100,1,0,3,40,0,5,120,120,0,1
 Style: Title,Anton,96,&H00FFFFFF,&H00FFFFFF,&H40642D4A,&H00000000,0,0,0,0,100,100,1,0,3,34,0,8,140,140,560,1
 
 [Events]
@@ -75,6 +87,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     lines = []
     if title:  # translucent purple box with white text near the top, like a hook card
         lines.append(f"Dialogue: 1,{_ass_time(0)},{_ass_time(title_secs)},Title,,0,0,0,,{{\\fad(150,250)}}{title.upper()}")
+    if outro:  # "follow for more" card in the middle of the screen, popping in
+        start, end, text = outro
+        lines.append(f"Dialogue: 1,{_ass_time(start)},{_ass_time(end)},Outro,,0,0,0,,"
+                     rf"{{\fscx70\fscy70\t(0,160,\fscx100\fscy100)}}{text.upper()}")
     groups: list[list[dict]] = []
     for w in words:  # never let a caption group span two scenes
         if groups and len(groups[-1]) < per_line and groups[-1][-1].get("scene") == w.get("scene"):

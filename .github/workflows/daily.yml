@@ -1,0 +1,100 @@
+# Makes and uploads two Shorts a day. Each run starts ~2h early and uploads with a YouTube
+# scheduled publish time, so videos go live exactly at 8:00 and 20:00 Manila time even if
+# GitHub's scheduler runs late.
+name: Daily videos
+
+on:
+  schedule:
+    - cron: "0 22 * * *"   # 06:00 Manila -> inspiring story, public at 08:00
+    - cron: "0 10 * * *"   # 18:00 Manila -> fun facts, public at 20:00
+  workflow_dispatch:
+    inputs:
+      style:
+        description: "facts or story"
+        type: choice
+        options: [facts, story]
+        default: facts
+      upload:
+        description: "Upload to YouTube (scheduled for the next 8am/8pm slot)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # commit history.json so topics don't repeat
+
+concurrency:
+  group: daily-videos
+  cancel-in-progress: false
+
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      YT_API_KEY: ${{ secrets.YT_API_KEY }}
+      YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      ACG_TZ: Asia/Manila
+      IMAGEIO_FFMPEG_EXE: /usr/bin/ffmpeg
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick video type
+        id: plan
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
+          elif [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
+            style=story; upload=true
+          else
+            style=facts; upload=true
+          fi
+          if [ "$style" = story ]; then
+            echo "args=--niche \"short inspiring stories\" --style story --publish-next 08:00" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=--niche \"fun facts\" --style facts --publish-next 20:00" >> "$GITHUB_OUTPUT"
+          fi
+          echo "upload=$upload" >> "$GITHUB_OUTPUT"
+          echo "style=$style" >> "$GITHUB_OUTPUT"
+
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fontconfig
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Make video
+        run: |
+          extra=""
+          if [ "${{ steps.plan.outputs.upload }}" = "true" ]; then extra="--upload"; fi
+          eval python -m acg make ${{ steps.plan.outputs.args }} $extra
+
+      - name: Save history
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add history.json
+          git commit -m "Add ${{ steps.plan.outputs.style }} video to history [skip ci]" || exit 0
+          git pull --rebase -q && git push -q
+
+      - name: Keep video + posting guide for TikTok/Instagram
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.plan.outputs.style }}-${{ github.run_number }}
+          path: |
+            output/*/video.mp4
+            output/*/POSTING_GUIDE.md
+          retention-days: 14
+          if-no-files-found: ignore

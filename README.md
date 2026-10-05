@@ -52,6 +52,28 @@ Each run creates `output/<date>-<topic>/` containing:
 
 Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (list voices: `.\.venv\Scripts\edge-tts --list-voices`), `--no-research`, `--privacy private|unlisted|public`, `--keep-temp`.
 
+## Daily automation (GitHub Actions, free)
+
+`.github/workflows/daily.yml` runs twice a day:
+
+| Runs at (Manila) | Makes | Goes public on YouTube |
+|---|---|---|
+| 06:00 | inspiring story | 08:00 |
+| 18:00 | fun facts | 20:00 |
+
+Each run uploads the video with a YouTube scheduled publish time, so it goes live exactly on the hour even if GitHub starts the run late. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 14 days).
+
+Setup: GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**, add:
+
+- `GEMINI_API_KEY`, `PIXABAY_API_KEY` (and `YT_API_KEY` once you have it)
+- `YT_TOKEN_JSON` – the full contents of your local `token.json` (created by the first local `--upload`)
+
+Before creating `token.json`, set the OAuth app to **In production** (Google Cloud → Google Auth Platform → Audience → **Publish app**). Apps left in *Testing* get refresh tokens that expire after 7 days, which would break the daily uploads. No verification is needed for your own channel.
+
+To test without waiting: Actions → **Daily videos** → **Run workflow** (choose style, upload on/off).
+
+Every video ends with "Follow for more videos like this!" (spoken + on screen). Change it with `ACG_OUTRO`, or skip it with `--no-outro`.
+
 ## AI images setup (one time, free)
 
 1. Sign up at https://dash.cloudflare.com/sign-up (free plan, no card needed).
@@ -60,7 +82,7 @@ Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (li
 
 The free plan gives 10,000 "neurons" per day, which by Cloudflare's published rates should be enough for several videos a day. If the allowance runs out partway through a video, the remaining scenes use stock footage.
 
-Options: `--visuals ai|stock`, `--seed 7` (change it to get a different-looking character), `--caption-words 1`.
+Options: `--visuals ai` (default is `stock`), `--seed 7` (change it to get a different-looking character), `--caption-style bold` (one big word + title card).
 
 ## YouTube setup (one time)
 

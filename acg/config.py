@@ -22,6 +22,8 @@ YT_API_KEY = os.getenv("YT_API_KEY", "")
 WEB_SEARCH = os.getenv("ACG_WEB_SEARCH", "0") == "1"
 MODEL = os.getenv("ACG_MODEL", "gemini-flash-latest")
 VOICE = os.getenv("ACG_VOICE", "en-US-AndrewNeural")
+OUTRO = os.getenv("ACG_OUTRO", "Follow for more videos like this!")  # spoken + shown at the end; "" disables
+TIMEZONE = os.getenv("ACG_TZ", "Asia/Manila")  # for --publish-next
 YT_CATEGORY_ID = os.getenv("YT_CATEGORY_ID", "22")  # 22 = People & Blogs, 27 = Education
 
 WIDTH, HEIGHT, FPS = 1080, 1920, 30

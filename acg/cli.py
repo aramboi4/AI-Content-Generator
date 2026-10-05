@@ -1,9 +1,10 @@
 """python -m acg make --niche "space facts" [--topic ...] [--upload]"""
 import argparse
-import json
+import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from . import config
 
@@ -12,11 +13,27 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40] or "video"
 
 
+def _next_publish_time(hhmm: str) -> str:
+    """Next occurrence of local HH:MM (in ACG_TZ) as ISO UTC, at least 15 minutes from now."""
+    tz = ZoneInfo(config.TIMEZONE)
+    now = datetime.now(tz)
+    h, m = map(int, hhmm.split(":"))
+    at = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    if at < now + timedelta(minutes=15):
+        at += timedelta(days=1)
+    return at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _publish_at(args: argparse.Namespace) -> str | None:
+    return _next_publish_time(args.publish_next) if args.publish_next else args.publish_at
+
+
 def make(args: argparse.Namespace) -> None:
     if not config.GEMINI_API_KEY:
         sys.exit("GEMINI_API_KEY is not set - add it to .env (free key: https://aistudio.google.com/apikey)")
 
     from .footage import fetch_clip, provider
+    from . import history
     from .guide import write_guide
     from .media import concat_audio, final_render, render_segment, write_captions
     from .trends import youtube_trends
@@ -41,7 +58,8 @@ def make(args: argparse.Namespace) -> None:
         research = "\n\n".join(parts)
 
     print("2/6 Writing script, titles, captions and hashtags...")
-    pkg = write_package(args.niche, args.topic, research, args.seconds, args.style)
+    pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
+                        avoid=history.recent_topics(args.style))
 
     workdir = config.OUTPUT_DIR / f"{datetime.now():%Y%m%d-%H%M%S}-{_slug(pkg.topic)}"
     workdir.mkdir(parents=True, exist_ok=True)
@@ -52,11 +70,13 @@ def make(args: argparse.Namespace) -> None:
 
     print("3/6 Generating voiceover...")
     rate = "+8%" if args.style == "facts" else "-4%"  # stories read slower
-    voices = synthesize_scenes([s.narration for s in pkg.scenes], args.voice, workdir, rate)
+    narrations = [s.narration for s in pkg.scenes] + ([config.OUTRO] if config.OUTRO and not args.no_outro else [])
+    voices = synthesize_scenes(narrations, args.voice, workdir, rate)
+    outro = voices[len(pkg.scenes):]
 
     from . import images
 
-    visuals = args.visuals or ("ai" if images.available() else "stock")
+    visuals = args.visuals
     if visuals == "ai" and not images.available():
         sys.exit("--visuals ai needs CF_ACCOUNT_ID and CF_API_TOKEN in .env (see README).")
     source = provider()
@@ -96,11 +116,20 @@ def make(args: argparse.Namespace) -> None:
         words += [{**w, "start": w["start"] + t, "end": w["end"] + t, "scene": i} for w in v["words"]]
         t += v["duration"]
 
+    outro_at = None
+    if outro:  # call to action over the last clip, shown as a text card instead of captions
+        outro_at = t
+        seg = workdir / "seg_outro.mp4"
+        render_segment(last_clip, outro[0]["duration"] + 0.6, seg, zoom_out=True)
+        segments.append(seg)
+        t += outro[0]["duration"] + 0.6
+
     print("5/6 Adding captions, music and final render...")
     narration = workdir / "narration.m4a"
     concat_audio([v["audio"] for v in voices], narration)
     captions = workdir / "captions.ass"
-    write_captions(words, captions, per_line=args.caption_words, title=pkg.tiktok.on_screen_title)
+    write_captions(words, captions, style=args.caption_style, title=pkg.tiktok.on_screen_title,
+                   outro=(outro_at, t, config.OUTRO) if outro_at is not None else None)
     video = workdir / "video.mp4"
     final_render(segments, narration, captions, video)
 
@@ -108,12 +137,19 @@ def make(args: argparse.Namespace) -> None:
     if args.upload:
         print("6/6 Uploading to YouTube...")
         from .youtube import upload
-        url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=args.publish_at)
-        print(f"    {url}")
+        publish_at = _publish_at(args)
+        url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=publish_at)
+        print(f"    {url}" + (f" (goes public {publish_at})" if publish_at else ""))
     else:
         print("6/6 Skipping YouTube upload (use --upload).")
 
-    write_guide(pkg, workdir / "POSTING_GUIDE.md", url)
+    guide = workdir / "POSTING_GUIDE.md"
+    write_guide(pkg, guide, url)
+    history.add({"style": args.style, "topic": pkg.topic, "title": pkg.youtube.title, "youtube": url,
+                 "folder": workdir.name})
+    if os.getenv("GITHUB_STEP_SUMMARY"):  # show captions on the GitHub Actions run page
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+            f.write(guide.read_text(encoding="utf-8") + "\n")
     if not args.keep_temp:
         for p in workdir.glob("*"):
             if p.name.startswith(("clip_", "seg_", "voice_")) or p.suffix == ".txt":
@@ -134,7 +170,7 @@ def upload_existing(args: argparse.Namespace) -> None:
         sys.exit(f"{folder} needs video.mp4 and package.json (made by 'acg make').")
     pkg = VideoPackage.model_validate_json(pkg_file.read_text(encoding="utf-8-sig"))
     print(f"Uploading '{pkg.youtube.title}' ({args.privacy})...")
-    url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=args.publish_at)
+    url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=_publish_at(args))
     write_guide(pkg, folder / "POSTING_GUIDE.md", url)
     print(f"Done: {url}")
 
@@ -147,19 +183,24 @@ def main() -> None:
     m.add_argument("--style", default="facts", choices=["facts", "story"], help="fun facts (fast, punchy) or inspiring story (slower, narrative)")
     m.add_argument("--topic", help="Specific topic; omit to let it pick from current trends")
     m.add_argument("--seconds", type=int, default=45, help="Target length (default 45)")
-    m.add_argument("--visuals", choices=["ai", "stock"], help="AI 3D images (default when Cloudflare is set up) or stock footage")
+    m.add_argument("--visuals", default="stock", choices=["stock", "ai"],
+                   help="stock footage (default) or AI 3D images (needs free Cloudflare setup)")
     m.add_argument("--seed", type=int, default=7, help="Image seed; change it for a different-looking character")
-    m.add_argument("--caption-words", type=int, default=1, help="Words shown per caption (default 1)")
+    m.add_argument("--caption-style", default="classic", choices=["classic", "bold"],
+                   help="classic: 3-word captions (default); bold: one big word + title card")
     m.add_argument("--voice", default=config.VOICE, help="edge-tts voice (run: edge-tts --list-voices)")
     m.add_argument("--no-research", action="store_true", help="Skip the live trend web search")
     m.add_argument("--upload", action="store_true", help="Upload to YouTube when done")
     m.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
+    m.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time (ACG_TZ, default Asia/Manila)")
+    m.add_argument("--no-outro", action="store_true", help='Skip the "follow for more" ending')
     m.add_argument("--keep-temp", action="store_true", help="Keep intermediate files")
     u = sub.add_parser("upload", help="Upload an already-made video folder to YouTube")
     u.add_argument("folder", help="Folder under output/ containing video.mp4 and package.json")
     u.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     u.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
+    u.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time")
     args = p.parse_args()
     try:
         make(args) if args.cmd == "make" else upload_existing(args)
