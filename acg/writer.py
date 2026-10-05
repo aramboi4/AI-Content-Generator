@@ -34,6 +34,9 @@ class Scene(BaseModel):
     visual_queries: list[str] = Field(description=(
         "2-3 stock-footage searches from specific to generic, each 1-2 common words naming something "
         "visible (noun first), e.g. ['octopus', 'coral reef', 'ocean']"))
+    image_prompt: str = Field(description=(
+        "One-sentence image prompt for this scene: who/what is shown, action, setting, camera framing. "
+        "If the main character appears, refer to them as 'the character' (their look is defined separately)."))
 
 
 class YouTubePost(BaseModel):
@@ -50,6 +53,9 @@ class SocialPost(BaseModel):
 
 class VideoPackage(BaseModel):
     topic: str
+    character: str = Field(description=(
+        "Visual description of the main recurring character (age, hair, face, outfit colors), 1-2 sentences. "
+        "For fact videos with no character, describe a friendly narrator character (e.g. a curious kid explorer)."))
     scenes: list[Scene]
     youtube: YouTubePost
     tiktok: SocialPost
@@ -116,6 +122,8 @@ Trend research (collected today):
 Script rules:
 {STYLE_RULES[style].format(words=words)}
 - Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
+- image_prompt: a vivid, concrete, single moment that illustrates the narration (3D cartoon look is added
+  automatically - don't mention style). Vary framing across scenes: close-up, medium, wide.
 - visual_queries: simple, literal words a stock site (Pixabay/Pexels) would tag - objects, animals, places,
   people doing common actions. No abstract ideas ("hope", "mistake") and no names.
 

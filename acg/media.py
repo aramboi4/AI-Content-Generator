@@ -1,4 +1,5 @@
 """FFmpeg helpers: probing, per-scene clips, captions, final render."""
+import os
 import random
 import re
 import subprocess
@@ -6,7 +7,7 @@ from pathlib import Path
 
 import imageio_ffmpeg
 
-from .config import FPS, HEIGHT, MUSIC_DIR, WIDTH
+from .config import FONTS_DIR, FPS, HEIGHT, MUSIC_DIR, WIDTH
 
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -27,12 +28,16 @@ def probe_duration(path: Path) -> float:
     return int(h) * 3600 + int(mnt) * 60 + float(s)
 
 
-def render_segment(clip: Path | None, duration: float, out: Path) -> None:
-    """Loop/trim a clip to `duration`, crop to vertical, with a slow push-in zoom."""
+def render_segment(clip: Path | None, duration: float, out: Path, zoom_out: bool = False) -> None:
+    """Loop/trim a clip or still image to `duration`, crop to vertical, with a slow zoom."""
+    d = f"{duration:.3f}"
+    factor = f"(1.08-0.08*t/{d})" if zoom_out else f"(1+0.08*t/{d})"
     zoom = (f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,crop={WIDTH}:{HEIGHT},fps={FPS},"
-            f"scale=w='trunc({WIDTH}*(1+0.06*t/{duration:.3f})/2)*2':h=-2:eval=frame,"
+            f"scale=w='trunc({WIDTH}*{factor}/2)*2':h=-2:eval=frame:flags=bicubic,"
             f"crop={WIDTH}:{HEIGHT},format=yuv420p")
-    if clip:
+    if clip and clip.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}:
+        src = ["-loop", "1", "-framerate", str(FPS), "-i", str(clip)]
+    elif clip:
         src = ["-stream_loop", "-1", "-i", str(clip)]
     else:
         src = ["-f", "lavfi", "-i", f"color=c=0x111111:s={WIDTH}x{HEIGHT}:r={FPS}"]
@@ -51,8 +56,8 @@ def _ass_time(t: float) -> str:
     return f"{cs // 360000}:{cs // 6000 % 60:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}"
 
 
-def write_captions(words: list[dict], out: Path, per_line: int = 3) -> None:
-    """Bold, centered, pop-in word-group captions (the standard Shorts/TikTok look)."""
+def write_captions(words: list[dict], out: Path, per_line: int = 1, title: str = "", title_secs: float = 2.5) -> None:
+    """Big centered pop-in captions (one word at a time by default) plus an optional opening title card."""
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {WIDTH}
@@ -61,12 +66,15 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Arial Black,92,&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,7,3,2,80,80,620,1
+Style: Cap,Anton,{200 if per_line == 1 else 130},&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,0,0,0,0,100,100,1,0,1,12,0,2,60,60,560,1
+Style: Title,Anton,96,&H00FFFFFF,&H00FFFFFF,&H40642D4A,&H00000000,0,0,0,0,100,100,1,0,3,34,0,8,140,140,560,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     lines = []
+    if title:  # translucent purple box with white text near the top, like a hook card
+        lines.append(f"Dialogue: 1,{_ass_time(0)},{_ass_time(title_secs)},Title,,0,0,0,,{{\\fad(150,250)}}{title.upper()}")
     groups: list[list[dict]] = []
     for w in words:  # never let a caption group span two scenes
         if groups and len(groups[-1]) < per_line and groups[-1][-1].get("scene") == w.get("scene"):
@@ -92,7 +100,8 @@ def final_render(segments: list[Path], narration: Path, captions: Path, out: Pat
 
     tracks = sorted(p for p in MUSIC_DIR.glob("*") if p.suffix.lower() in {".mp3", ".m4a", ".wav"}) if MUSIC_DIR.exists() else []
     args = ["-f", "concat", "-safe", "0", "-i", listfile.name, "-i", narration.name]
-    vf = f"[0:v]subtitles={captions.name}[v]"
+    fonts = os.path.relpath(FONTS_DIR, workdir).replace("\\", "/")
+    vf = f"[0:v]subtitles={captions.name}:fontsdir={fonts}[v]"
     if tracks:
         args += ["-stream_loop", "-1", "-i", str(random.choice(tracks))]
         af = (f"[2:a]volume={music_volume}[m];"

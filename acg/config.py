@@ -8,11 +8,14 @@ load_dotenv(ROOT / ".env")
 
 OUTPUT_DIR = ROOT / "output"
 MUSIC_DIR = ROOT / "assets" / "music"
+FONTS_DIR = ROOT / "assets" / "fonts"
 YT_CLIENT_SECRET = ROOT / "client_secret.json"
 YT_TOKEN = ROOT / "token.json"
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
+CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
+CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 YT_API_KEY = os.getenv("YT_API_KEY", "")
 # Gemini Google-search grounding is not included in the free tier; set to 1 if your key has it.

@@ -54,22 +54,44 @@ def make(args: argparse.Namespace) -> None:
     rate = "+8%" if args.style == "facts" else "-4%"  # stories read slower
     voices = synthesize_scenes([s.narration for s in pkg.scenes], args.voice, workdir, rate)
 
-    print("4/6 Fetching stock footage and rendering scenes...")
+    from . import images
+
+    visuals = args.visuals or ("ai" if images.available() else "stock")
+    if visuals == "ai" and not images.available():
+        sys.exit("--visuals ai needs CF_ACCOUNT_ID and CF_API_TOKEN in .env (see README).")
     source = provider()
-    if not source:
-        print("    PIXABAY_API_KEY not set - using plain backgrounds.")
-    else:  # Pixabay/Pexels ask that the footage source be credited
+    char_ref = None
+    if visuals == "ai":
+        print("4/6 Generating AI scene images and rendering scenes...")
+        print("    character reference...")
+        char_ref = images.generate(
+            f"Character design reference: {pkg.character}. Full body, front view, friendly expression, "
+            "plain soft background", workdir / "character.jpg", seed=args.seed)
+    else:
+        print("4/6 Fetching stock footage and rendering scenes...")
+        if not source:
+            print("    PIXABAY_API_KEY not set - using plain backgrounds.")
+    if visuals == "stock" and source:  # Pixabay/Pexels ask that the footage source be credited
         pkg.youtube.description += f"\n\nStock footage: {source}"
         (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
     used: set[int] = set()
     segments, words, t, last_clip = [], [], 0.0, None
     for i, (scene, v) in enumerate(zip(pkg.scenes, voices)):
-        clip = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4")
-        status = "ok" if clip else "no match, reusing previous clip" if last_clip else "no match, plain background"
-        print(f"    scene {i + 1}: {scene.visual_queries} -> {status}")
+        clip = None
+        if visuals == "ai":
+            try:
+                clip = images.generate(
+                    f"{scene.image_prompt}. The character looks exactly like the character in image 0: {pkg.character}",
+                    workdir / f"scene_{i:02d}.jpg", refs=[char_ref], seed=args.seed + i + 1)
+            except RuntimeError as e:  # e.g. daily free allowance used up: fall back to stock footage
+                print(f"    scene {i + 1}: image failed ({str(e)[:100]})")
+        if clip is None and source:
+            clip = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4")
+        status = "ok" if clip else "no match, reusing previous" if last_clip else "no match, plain background"
+        print(f"    scene {i + 1}: {scene.image_prompt if visuals == 'ai' else scene.visual_queries} -> {status}")
         clip = last_clip = clip or last_clip
         seg = workdir / f"seg_{i:02d}.mp4"
-        render_segment(clip, v["duration"], seg)
+        render_segment(clip, v["duration"], seg, zoom_out=i % 2 == 1)
         segments.append(seg)
         words += [{**w, "start": w["start"] + t, "end": w["end"] + t, "scene": i} for w in v["words"]]
         t += v["duration"]
@@ -78,7 +100,7 @@ def make(args: argparse.Namespace) -> None:
     narration = workdir / "narration.m4a"
     concat_audio([v["audio"] for v in voices], narration)
     captions = workdir / "captions.ass"
-    write_captions(words, captions)
+    write_captions(words, captions, per_line=args.caption_words, title=pkg.tiktok.on_screen_title)
     video = workdir / "video.mp4"
     final_render(segments, narration, captions, video)
 
@@ -125,6 +147,9 @@ def main() -> None:
     m.add_argument("--style", default="facts", choices=["facts", "story"], help="fun facts (fast, punchy) or inspiring story (slower, narrative)")
     m.add_argument("--topic", help="Specific topic; omit to let it pick from current trends")
     m.add_argument("--seconds", type=int, default=45, help="Target length (default 45)")
+    m.add_argument("--visuals", choices=["ai", "stock"], help="AI 3D images (default when Cloudflare is set up) or stock footage")
+    m.add_argument("--seed", type=int, default=7, help="Image seed; change it for a different-looking character")
+    m.add_argument("--caption-words", type=int, default=1, help="Words shown per caption (default 1)")
     m.add_argument("--voice", default=config.VOICE, help="edge-tts voice (run: edge-tts --list-voices)")
     m.add_argument("--no-research", action="store_true", help="Skip the live trend web search")
     m.add_argument("--upload", action="store_true", help="Upload to YouTube when done")

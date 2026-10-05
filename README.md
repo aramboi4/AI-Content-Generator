@@ -5,8 +5,8 @@ Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels)
 1. **Trend research** – pulls the most-viewed recent Shorts in your niche from YouTube (their hashtags and tags), plus optional Gemini web search (`ACG_WEB_SEARCH=1`, which isn't included in Gemini's free tier)
 2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags
 3. **Voiceover** – free Microsoft neural voices via `edge-tts`, with word timings
-4. **Footage** – free stock clips from Pixabay (or Pexels), cropped to vertical
-5. **Render** – 1080×1920 video with slow zoom, pop-in captions, optional background music
+4. **Visuals** – AI 3D cartoon images (Cloudflare Workers AI, free daily allowance) with the same character in every scene, or free stock clips from Pixabay/Pexels
+5. **Render** – 1080×1920 video with slow zoom in/out, one-word pop-in captions (Anton font), a purple title card, optional background music
 6. **Publish** – auto-upload to YouTube; a `POSTING_GUIDE.md` with copy-paste captions for TikTok and Instagram
 
 ## Setup
@@ -51,6 +51,16 @@ Each run creates `output/<date>-<topic>/` containing:
 - `package.json` – everything Gemini generated · `research.md` – the raw trend research
 
 Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (list voices: `.\.venv\Scripts\edge-tts --list-voices`), `--no-research`, `--privacy private|unlisted|public`, `--keep-temp`.
+
+## AI images setup (one time, free)
+
+1. Sign up at https://dash.cloudflare.com/sign-up (free plan, no card needed).
+2. **Account ID:** on the dashboard home, open the account menu (or Workers & Pages) → copy **Account ID** → `CF_ACCOUNT_ID`.
+3. **API token:** My Profile → **API Tokens** → Create Token → **Workers AI** template → Create → copy it → `CF_API_TOKEN`.
+
+The free plan gives 10,000 "neurons" per day, which by Cloudflare's published rates should be enough for several videos a day. If the allowance runs out partway through a video, the remaining scenes use stock footage.
+
+Options: `--visuals ai|stock`, `--seed 7` (change it to get a different-looking character), `--caption-words 1`.
 
 ## YouTube setup (one time)
 
