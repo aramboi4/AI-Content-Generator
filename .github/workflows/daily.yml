@@ -5,8 +5,8 @@ name: Daily videos
 
 on:
   schedule:
-    - cron: "0 22 * * *"   # 06:00 Manila -> inspiring story, public at 08:00
-    - cron: "0 10 * * *"   # 18:00 Manila -> fun facts, public at 20:00
+    - cron: "0 22 * * *"   # 06:00 Manila -> fun facts, public at 08:00
+    - cron: "0 10 * * *"   # 18:00 Manila -> inspiring story, public at 20:00
   workflow_dispatch:
     inputs:
       style:
@@ -15,7 +15,7 @@ on:
         options: [facts, story]
         default: facts
       upload:
-        description: "Upload to YouTube (scheduled for the next 8am/8pm slot)"
+        description: "Upload to YouTube (facts -> next 8am, story -> next 8pm)"
         type: boolean
         default: false
 
@@ -50,16 +50,16 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
           elif [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
-            style=story; upload=true
-          else
             style=facts; upload=true
+          else
+            style=story; upload=true
           fi
           if [ "$style" = story ]; then
             echo "niche=short inspiring stories" >> "$GITHUB_OUTPUT"
-            echo "publish=08:00" >> "$GITHUB_OUTPUT"
+            echo "publish=20:00" >> "$GITHUB_OUTPUT"
           else
             echo "niche=fun facts" >> "$GITHUB_OUTPUT"
-            echo "publish=20:00" >> "$GITHUB_OUTPUT"
+            echo "publish=08:00" >> "$GITHUB_OUTPUT"
           fi
           echo "upload=$upload" >> "$GITHUB_OUTPUT"
           echo "style=$style" >> "$GITHUB_OUTPUT"

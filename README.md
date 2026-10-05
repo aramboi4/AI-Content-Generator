@@ -58,8 +58,8 @@ Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (li
 
 | Runs at (Manila) | Makes | Goes public on YouTube |
 |---|---|---|
-| 06:00 | inspiring story | 08:00 |
-| 18:00 | fun facts | 20:00 |
+| 06:00 | fun facts | 08:00 |
+| 18:00 | inspiring story | 20:00 |
 
 Each run uploads the video with a YouTube scheduled publish time, so it goes live exactly on the hour even if GitHub starts the run late. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 14 days).
 
