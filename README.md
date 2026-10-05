@@ -2,8 +2,8 @@
 
 Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels) from a niche:
 
-1. **Trend research** – Claude searches the web for what's trending now (hashtags, sounds, formats, platform rules)
-2. **Script + post copy** – Claude writes the script and platform-specific titles, captions and hashtags
+1. **Trend research** – pulls the most-viewed recent Shorts in your niche from YouTube (their hashtags and tags), plus a Gemini web search for what's trending (hashtags, sounds, formats, platform rules)
+2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags
 3. **Voiceover** – free Microsoft neural voices via `edge-tts`, with word timings
 4. **Footage** – free vertical stock clips from Pexels
 5. **Render** – 1080×1920 video with slow zoom, pop-in captions, optional background music
@@ -17,8 +17,11 @@ python -m venv .venv
 copy .env.example .env   # then fill in the keys
 ```
 
-- `ANTHROPIC_API_KEY` – from https://console.anthropic.com. Web search must be enabled for your org (Console → Settings → Privacy/Features).
-- `PEXELS_API_KEY` – free from https://www.pexels.com/api/
+All keys are free and none needs a credit card:
+
+- `GEMINI_API_KEY` – required. Get it from https://aistudio.google.com/apikey
+- `PEXELS_API_KEY` – recommended, for stock footage. Get it from https://www.pexels.com/api/
+- `YT_API_KEY` – recommended, for trend data. Use the same Google Cloud project as the YouTube setup below: Credentials → Create credentials → **API key**
 - **Music (optional):** drop royalty-free `.mp3` files into `assets/music/` (e.g. from the YouTube Audio Library). One is picked at random per video.
 
 FFmpeg is bundled through `imageio-ffmpeg`, so you don't need to install it separately.
@@ -26,22 +29,25 @@ FFmpeg is bundled through `imageio-ffmpeg`, so you don't need to install it sepa
 ## Usage
 
 ```powershell
-# Let it pick a trending topic in the niche
-.\.venv\Scripts\python -m acg make --niche "mind-blowing animal facts"
+# Fun facts - let it pick a trending topic
+.\.venv\Scripts\python -m acg make --niche "fun facts"
+
+# Short inspiring story
+.\.venv\Scripts\python -m acg make --niche "short inspiring stories" --style story
 
 # Specific topic, upload to YouTube as private
-.\.venv\Scripts\python -m acg make --niche "space facts" --topic "why Venus spins backwards" --upload
+.\.venv\Scripts\python -m acg make --niche "fun facts" --topic "weird facts about octopuses" --upload
 
 # Schedule a public YouTube release (UTC)
-.\.venv\Scripts\python -m acg make --niche "money tips" --upload --publish-at 2026-10-06T17:00:00Z
+.\.venv\Scripts\python -m acg make --niche "short inspiring stories" --style story --upload --publish-at 2026-10-07T17:00:00Z
 ```
 
 Each run creates `output/<date>-<topic>/` containing:
 - `video.mp4` – the finished video
 - `POSTING_GUIDE.md` – titles, captions and hashtags for each platform, best posting times, trend notes, checklist
-- `package.json` – everything Claude generated · `research.md` – the raw trend research
+- `package.json` – everything Gemini generated · `research.md` – the raw trend research
 
-Options: `--seconds 45`, `--voice en-US-AndrewNeural` (list voices: `.\.venv\Scripts\edge-tts --list-voices`), `--no-research`, `--privacy private|unlisted|public`, `--keep-temp`.
+Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (list voices: `.\.venv\Scripts\edge-tts --list-voices`), `--no-research`, `--privacy private|unlisted|public`, `--keep-temp`.
 
 ## YouTube setup (one time)
 
@@ -58,4 +64,4 @@ These are posted by hand. Open the video's `POSTING_GUIDE.md` and copy the capti
 
 ## Cost
 
-Roughly $0.05–0.20 per video in Claude API usage, mostly the web-search research step. Voice, footage and rendering are free.
+Free. Everything runs on free tiers: Gemini, Pexels, the YouTube Data API, edge-tts and local FFmpeg. Google's free-tier limits for Gemini change over time, so check https://aistudio.google.com if you hit a quota error. If the Gemini web search isn't available on your free tier, the tool skips it and keeps going with the YouTube trend data.

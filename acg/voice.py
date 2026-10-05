@@ -9,9 +9,9 @@ from .media import probe_duration
 TICKS = 10_000_000  # edge-tts offsets are in 100ns units
 
 
-async def _synth(text: str, voice: str, out: Path) -> list[dict]:
+async def _synth(text: str, voice: str, rate: str, out: Path) -> list[dict]:
     words = []
-    comm = edge_tts.Communicate(text, voice, rate="+8%", boundary="WordBoundary")
+    comm = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
     with open(out, "wb") as f:
         async for chunk in comm.stream():
             if chunk["type"] == "audio":
@@ -22,12 +22,12 @@ async def _synth(text: str, voice: str, out: Path) -> list[dict]:
     return words
 
 
-def synthesize_scenes(narrations: list[str], voice: str, workdir: Path) -> list[dict]:
+def synthesize_scenes(narrations: list[str], voice: str, workdir: Path, rate: str = "+8%") -> list[dict]:
     """Returns per scene: {"audio": Path, "duration": float, "words": [...]} with scene-local timings."""
     paths = [workdir / f"voice_{i:02d}.mp3" for i in range(len(narrations))]
 
     async def run():
-        return await asyncio.gather(*(_synth(t, voice, p) for t, p in zip(narrations, paths)))
+        return await asyncio.gather(*(_synth(t, voice, rate, p) for t, p in zip(narrations, paths)))
 
     all_words = asyncio.run(run())
     return [

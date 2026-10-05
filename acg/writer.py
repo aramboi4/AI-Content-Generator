@@ -1,17 +1,13 @@
-"""Claude calls: live trend research, then the script + per-platform post copy."""
+"""Gemini (free tier) calls: live trend research, then the script + per-platform post copy."""
 from datetime import date
 
-import anthropic
+from google import genai
+from google.genai import types
 from pydantic import BaseModel, Field
 
-from .config import MODEL
+from .config import GEMINI_API_KEY, MODEL
 
-# Server-side fallback: if the main model declines, the API retries on a
-# suitable model inside the same call instead of failing the run.
-BETAS = ["server-side-fallback-2026-07-01"]
-FALLBACKS = "default"
-
-client = anthropic.Anthropic()
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 class Scene(BaseModel):
@@ -41,12 +37,8 @@ class VideoPackage(BaseModel):
     trend_notes: str = Field(description="Trending sounds/formats/hashtags worth using and why; flag anything unverified")
 
 
-def _final_text(resp) -> str:
-    return "\n".join(b.text for b in resp.content if b.type == "text").strip()
-
-
 def research_trends(niche: str, topic: str | None) -> str:
-    """Use Claude's web search to collect what is trending right now for this niche."""
+    """Ask Gemini to search Google for what's trending now. Returns "" if search grounding isn't available."""
     focus = f'the topic "{topic}"' if topic else "a strong video topic"
     prompt = (
         f"Today is {date.today().isoformat()}. I make faceless short-form videos in the niche: {niche}.\n"
@@ -59,59 +51,65 @@ def research_trends(niche: str, topic: str | None) -> str:
         "4. If no topic was given: 5 topic ideas currently getting attention in this niche.\n"
         "Only report what your searches support; say when something is unverified."
     )
-    messages = [{"role": "user", "content": prompt}]
-    for _ in range(4):  # server tools can pause long turns; resume up to a few times
-        resp = client.beta.messages.create(
+    try:
+        resp = client.models.generate_content(
             model=MODEL,
-            max_tokens=16000,
-            betas=BETAS,
-            fallbacks=FALLBACKS,
-            output_config={"effort": "medium"},
-            tools=[{"type": "web_search_20260209", "name": "web_search", "max_uses": 6}],
-            messages=messages,
+            contents=prompt,
+            config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
         )
-        if resp.stop_reason != "pause_turn":
-            break
-        messages = [*messages, {"role": "assistant", "content": resp.content}]
-    if resp.stop_reason == "refusal":
-        raise RuntimeError("Trend research was declined by the model.")
-    return _final_text(resp)
+        return (resp.text or "").strip()
+    except Exception as e:  # free-tier quota or grounding not enabled: carry on without it
+        print(f"    Web search research unavailable ({type(e).__name__}: {str(e)[:120]}) - continuing without it.")
+        return ""
 
 
-def write_package(niche: str, topic: str | None, research: str, target_seconds: int) -> VideoPackage:
-    words = int(target_seconds * 2.6)  # ~2.6 spoken words per second
+STYLE_RULES = {
+    "facts": """- 5-8 scenes, about {words} words of narration total.
+- Scene 1 is the hook: a surprising claim or question that stops the scroll within 2 seconds.
+- One fact per scene, building to the most surprising one last.
+- Facts must be accurate and widely verifiable; skip anything you are unsure of.
+- End with a short payoff or a question that invites comments.""",
+    "story": """- 6-9 scenes, about {words} words of narration total, told as one short story.
+- Scene 1 is the hook: drop the viewer into a moment of tension or a striking line.
+- Structure: setup -> struggle -> turning point -> lesson. Keep the lesson to one sentence at the end.
+- Warm, simple, emotional language; no cliches like "little did they know".
+- If it's about a real person or event, every detail must be true and well documented.
+  If it's a parable or fictional, the narration must make that clear (e.g. "There's an old story...")
+  and topic must start with "Parable:". Never present an invented story as true.
+- End with the lesson, then a short question that invites comments.""",
+}
+WORDS_PER_SECOND = {"facts": 2.6, "story": 2.3}
+
+
+def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts") -> VideoPackage:
+    words = int(target_seconds * WORDS_PER_SECOND[style])
     prompt = f"""Write a faceless short-form video (vertical, ~{target_seconds}s) for the niche: {niche}.
+Format: {"fun facts" if style == "facts" else "short inspiring story"}
 Topic: {topic or "pick the best topic from the research below"}
 
-Trend research (live, from today):
+Trend research (collected today):
 <research>
 {research or "No research available - rely on evergreen best practices and say so in trend_notes."}
 </research>
 
 Script rules:
-- 5-8 scenes, about {words} words of narration total.
-- Scene 1 is the hook: a surprising claim or question that stops the scroll within 2 seconds.
+{STYLE_RULES[style].format(words=words)}
 - Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
-- Facts must be accurate; avoid claims you are unsure of.
-- End with a short payoff or a question that invites comments.
 - visual_query must describe footage that likely exists on a stock site (Pexels).
 
 Post copy rules:
-- Use trending hashtags from the research where they genuinely fit; mix broad + niche tags.
+- Use hashtags from the research where they genuinely fit; mix broad + niche tags.
 - Respect current platform hashtag limits found in the research (Instagram allows at most 5 per post).
 - TikTok: punchy caption under 150 chars before hashtags, 3-5 hashtags.
 - Instagram: 1-3 line caption with a call to action (save/share/comment), then hashtags.
 - YouTube: title must end with #Shorts; description ends with 3-5 hashtags.
 """
-    resp = client.beta.messages.parse(
+    resp = client.models.generate_content(
         model=MODEL,
-        max_tokens=16000,
-        betas=BETAS,
-        fallbacks=FALLBACKS,
-        output_config={"effort": "medium"},
-        messages=[{"role": "user", "content": prompt}],
-        output_format=VideoPackage,
+        contents=prompt,
+        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=VideoPackage),
     )
-    if resp.stop_reason == "refusal" or resp.parsed_output is None:
-        raise RuntimeError(f"Script generation failed (stop_reason={resp.stop_reason}).")
-    return resp.parsed_output
+    pkg = resp.parsed if isinstance(resp.parsed, VideoPackage) else None
+    if pkg is None:
+        pkg = VideoPackage.model_validate_json(resp.text or "{}")
+    return pkg
