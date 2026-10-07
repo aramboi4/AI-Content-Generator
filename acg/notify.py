@@ -10,6 +10,31 @@ from .writer import VideoPackage
 MAX_VIDEO_BYTES = 49 * 1024 * 1024  # bot upload limit is 50 MB
 
 
+# Free posts can't be geo-targeted (only paid promotion can), so this lists the signals that steer
+# the apps toward Filipino viewers, plus the disclosures a post promoting your own product needs.
+PH_POSTING_GUIDE = """🇵🇭 <b>Before posting this ad (to reach PH viewers)</b>
+
+<b>TikTok</b>
+1. Post from your phone in the PH, on PH mobile data or Wi-Fi - no VPN.
+2. More options → <b>Disclose post content</b> → turn on → <b>Your brand</b> (required when promoting your own product).
+3. Turn on the <b>AI-generated content</b> label.
+4. Add a location if TikTok offers it (e.g. Manila or your city).
+5. Sound: if you add one, pick it from the Commercial Music Library.
+6. Paste the caption (PH hashtags are already in it).
+
+<b>Instagram Reels</b>
+1. <b>Add location</b> → Philippines or your city.
+2. Advanced settings → <b>Add AI label</b>.
+3. Turn on <b>Also share to Facebook</b> - a big audience in the PH.
+4. Cover: first frame. Paste the caption.
+5. Promoting your own app needs no "Paid partnership" label.
+
+<b>Both apps</b>
+• logexpense.site must be the link in your bio (captions say "Link in bio").
+• Reply to the first comments within the first hour - it helps the post spread.
+• Paid "Promote"/"Boost" is the only way to pick a country - skip it until you're monetized."""
+
+
 def enabled() -> bool:
     return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 
@@ -28,7 +53,7 @@ def _send_text(text: str) -> None:
 
 
 def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, when: str | None = None,
-               note: str | None = None) -> None:
+               note: str | None = None, posting_guide: str | None = None) -> None:
     title = html.escape(pkg.tiktok.on_screen_title)
     yt = f"\nYouTube: {youtube_url}" + (f" (goes public {when})" if when else "") if youtube_url else ""
     header = f"🎬 <b>{title}</b>\n{html.escape(pkg.topic)}{html.escape(yt)}"
@@ -44,6 +69,8 @@ def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, w
     _send_text(f"📸 <b>Instagram caption</b> (tap to copy)\n<code>{html.escape(pkg.instagram.full_caption())}</code>")
     _send_text("✅ Cover: pick the first frame (title is on it). Turn on the AI-content label on both apps."
                + (f"\n{html.escape(note)}" if note else ""))
+    if posting_guide:  # already HTML
+        _send_text(posting_guide)
 
 
 def find_chat_id() -> str | None:

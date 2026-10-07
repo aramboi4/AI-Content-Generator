@@ -217,7 +217,7 @@ def make(args: argparse.Namespace) -> None:
         print("    Sending video + captions to Telegram...")
         try:
             notify.send_video(video, pkg, url, _local_time(publish_at) if publish_at else None,
-                              note=f"🔗 Ad: make sure {args.website} is the link in your TikTok and Instagram bio."
+                              posting_guide=notify.PH_POSTING_GUIDE.replace("logexpense.site", args.website)
                               if args.style == "ad" else None)
             if STATE["warnings"]:
                 notify.send_warnings(f"{args.style.title()} video", STATE["warnings"])
