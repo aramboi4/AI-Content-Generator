@@ -27,7 +27,8 @@ def _send_text(text: str) -> None:
                               "disable_web_page_preview": "true"})
 
 
-def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, when: str | None = None) -> None:
+def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, when: str | None = None,
+               note: str | None = None) -> None:
     title = html.escape(pkg.tiktok.on_screen_title)
     yt = f"\nYouTube: {youtube_url}" + (f" (goes public {when})" if when else "") if youtube_url else ""
     header = f"🎬 <b>{title}</b>\n{html.escape(pkg.topic)}{html.escape(yt)}"
@@ -41,7 +42,8 @@ def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, w
     # Each caption in its own message inside <code>, so one tap copies it.
     _send_text(f"📱 <b>TikTok caption</b> (tap to copy)\n<code>{html.escape(pkg.tiktok.full_caption())}</code>")
     _send_text(f"📸 <b>Instagram caption</b> (tap to copy)\n<code>{html.escape(pkg.instagram.full_caption())}</code>")
-    _send_text("✅ Cover: pick the first frame (title is on it). Turn on the AI-content label on both apps.")
+    _send_text("✅ Cover: pick the first frame (title is on it). Turn on the AI-content label on both apps."
+               + (f"\n{html.escape(note)}" if note else ""))
 
 
 def find_chat_id() -> str | None:

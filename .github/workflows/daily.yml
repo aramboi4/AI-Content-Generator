@@ -1,4 +1,4 @@
-# Makes and uploads two Shorts a day. Each run starts ~2h early and uploads with a YouTube
+# Makes and uploads two Shorts a day, plus a LogExpense ad every Saturday. Each run starts ~2h early and uploads with a YouTube
 # scheduled publish time, so videos go live exactly at 8:00 and 20:00 Manila time even if
 # GitHub's scheduler runs late.
 name: Daily videos
@@ -7,15 +7,16 @@ on:
   schedule:
     - cron: "0 22 * * *"   # 06:00 Manila -> fun facts, public at 08:00
     - cron: "0 10 * * *"   # 18:00 Manila -> inspiring story, public at 20:00
+    - cron: "0 2 * * 6"    # Saturday 10:00 Manila -> LogExpense ad, public at 12:00
   workflow_dispatch:
     inputs:
       style:
-        description: "facts or story"
+        description: "facts, story, or ad (LogExpense)"
         type: choice
-        options: [facts, story]
+        options: [facts, story, ad]
         default: facts
       upload:
-        description: "Upload to YouTube (facts -> next 8am, story -> next 8pm)"
+        description: "Upload to YouTube (facts -> next 8am, story -> next 8pm, ad -> next 12pm)"
         type: boolean
         default: false
 
@@ -53,10 +54,15 @@ jobs:
             style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
           elif [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
             style=facts; upload=true
+          elif [ "${{ github.event.schedule }}" = "0 2 * * 6" ]; then
+            style=ad; upload=true
           else
             style=story; upload=true
           fi
-          if [ "$style" = story ]; then
+          if [ "$style" = ad ]; then
+            echo "niche=budgeting tips" >> "$GITHUB_OUTPUT"   # used for trend hashtags only
+            echo "publish=12:00" >> "$GITHUB_OUTPUT"
+          elif [ "$style" = story ]; then
             echo "niche=short inspiring stories" >> "$GITHUB_OUTPUT"
             echo "publish=20:00" >> "$GITHUB_OUTPUT"
           else
@@ -85,6 +91,10 @@ jobs:
           UPLOAD: ${{ steps.plan.outputs.upload }}
         run: |
           args=(--niche "$NICHE" --style "$STYLE" --publish-next "$PUBLISH")
+          if [ "$STYLE" = "ad" ]; then
+            args+=(--brief ads/logexpense.md --website logexpense.site --seconds 30
+                   --cta-voice "Try it free at log expense dot site.")
+          fi
           if [ "$UPLOAD" = "true" ]; then args+=(--upload); fi
           python -m acg make "${args[@]}"
 

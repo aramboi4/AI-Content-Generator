@@ -70,6 +70,7 @@
     "folder": "20261006-035930-weird-body-facts"
   },
   {
+<<<<<<< HEAD
     "date": "2026-10-06T00:42",
     "style": "story",
     "topic": "Parable: The Blind Man's Lantern",
@@ -104,5 +105,14 @@
     "title": "Mind Blowing Space Facts You Never Knew #Shorts",
     "youtube": "https://youtube.com/shorts/wMJqCJAxKIs",
     "folder": "20261007-011704-surprising-space-facts"
+=======
+    "date": "2026-10-07T16:04",
+    "style": "ad",
+    "topic": "Ad: roommates arguing over split utility bills -> shared workspace",
+    "hook": "Who actually paid the electric bill this month?",
+    "title": "Stop fighting over bills with roommates #Shorts",
+    "youtube": null,
+    "folder": "20261007-160330-ad-roommates-arguing-over-split-utility-"
+>>>>>>> c466a4b (Add weekly LogExpense ad videos)
   }
 ]

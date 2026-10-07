@@ -60,6 +60,7 @@ Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (li
 |---|---|---|
 | 06:00 | fun facts | 08:00 |
 | 18:00 | inspiring story | 20:00 |
+| Saturday 10:00 | LogExpense ad (~30s) | Saturday 12:00 |
 
 Each run uploads the video with a YouTube scheduled publish time, so it goes live exactly on the hour even if GitHub starts the run late. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 14 days).
 
@@ -73,6 +74,15 @@ Before creating `token.json`, set the OAuth app to **In production** (Google Clo
 To test without waiting: Actions → **Daily videos** → **Run workflow** (choose style, upload on/off).
 
 About half of the videos (picked at random) end with a ~5s call to action, spoken and shown on screen: either "Follow for more videos like this!" or "Want to watch more videos? Follow for more!". Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
+
+## Weekly product ad (LogExpense)
+
+Every Saturday the workflow makes a ~30s ad for [logexpense.site](https://logexpense.site) using `--style ad`. The script is written only from the product brief in [ads/logexpense.md](ads/logexpense.md), so ads never claim features that don't exist. **Update that file when the app changes** (new features, iOS launch, paid plans going live). Each week picks a different angle (audience, problem, feature) from `history.json`, and every ad ends with "Try it free at LOGEXPENSE.SITE". Captions say "Link in bio", so keep logexpense.site as the link in your TikTok and Instagram bios.
+
+Run one by hand:
+```powershell
+.\.venv\Scripts\python -m acg make --style ad --niche "budgeting tips" --brief ads/logexpense.md --website logexpense.site --cta-voice "Try it free at log expense dot site." --seconds 30
+```
 
 ## Phone delivery (Telegram, free)
 

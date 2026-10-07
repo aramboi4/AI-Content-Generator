@@ -87,8 +87,16 @@ def make(args: argparse.Namespace) -> None:
 
     STATE["stage"] = "script"
     print("2/6 Writing script, titles, captions and hashtags...")
+    brief = ""
+    if args.style == "ad":
+        if not args.brief or not args.website:
+            sys.exit("--style ad needs --brief (product brief file) and --website.")
+        brief = open(args.brief, encoding="utf-8").read()
     pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
-                        avoid=history.recent_topics(args.style), avoid_hooks=history.recent_hooks())
+                        avoid=history.recent_topics(args.style), avoid_hooks=history.recent_hooks(),
+                        brief=brief, website=args.website or "")
+    if args.style == "ad" and args.website.lower() not in pkg.youtube.description.lower():
+        pkg.youtube.description = f"Try it free: https://{args.website}\n\n{pkg.youtube.description}"
 
     workdir = config.OUTPUT_DIR / f"{datetime.now():%Y%m%d-%H%M%S}-{_slug(pkg.topic)}"
     workdir.mkdir(parents=True, exist_ok=True)
@@ -99,12 +107,16 @@ def make(args: argparse.Namespace) -> None:
 
     STATE["stage"] = "voice"
     print("3/6 Generating voiceover...")
-    rate = "+8%" if args.style == "facts" else "-4%"  # stories read slower
-    outro_text = None
-    if config.OUTROS and not args.no_outro and (args.outro or random.random() < config.OUTRO_CHANCE):
-        outro_text = random.choice(config.OUTROS)
+    rate = {"facts": "+8%", "ad": "+4%"}.get(args.style, "-4%")  # stories read slower
+    outro_text = outro_spoken = None
+    if args.style == "ad":  # ads always end with the website call to action
+        outro_text = args.cta_text or f"Try it free at {args.website.upper()}"
+        outro_spoken = args.cta_voice or outro_text
+    elif config.OUTROS and not args.no_outro and (args.outro or random.random() < config.OUTRO_CHANCE):
+        outro_text = outro_spoken = random.choice(config.OUTROS)
+    if outro_text:
         print(f"    ending: {outro_text!r}")
-    narrations = [s.narration for s in pkg.scenes] + ([outro_text] if outro_text else [])
+    narrations = [s.narration for s in pkg.scenes] + ([outro_spoken] if outro_spoken else [])
     voices = synthesize_scenes(narrations, args.voice, workdir, rate)
     outro = voices[len(pkg.scenes):]
 
@@ -204,7 +216,9 @@ def make(args: argparse.Namespace) -> None:
     if notify.enabled():
         print("    Sending video + captions to Telegram...")
         try:
-            notify.send_video(video, pkg, url, _local_time(publish_at) if publish_at else None)
+            notify.send_video(video, pkg, url, _local_time(publish_at) if publish_at else None,
+                              note=f"🔗 Ad: make sure {args.website} is the link in your TikTok and Instagram bio."
+                              if args.style == "ad" else None)
             if STATE["warnings"]:
                 notify.send_warnings(f"{args.style.title()} video", STATE["warnings"])
         except Exception as e:  # never fail the run just because the phone notification failed
@@ -240,7 +254,12 @@ def main() -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
     m = sub.add_parser("make", help="Generate one video + posting guide")
     m.add_argument("--niche", required=True, help='e.g. "space facts", "stoic quotes", "money tips"')
-    m.add_argument("--style", default="facts", choices=["facts", "story"], help="fun facts (fast, punchy) or inspiring story (slower, narrative)")
+    m.add_argument("--style", default="facts", choices=["facts", "story", "ad"],
+                   help="fun facts (fast, punchy), inspiring story (slower, narrative), or product ad (needs --brief)")
+    m.add_argument("--brief", help="Product brief file for --style ad, e.g. ads/logexpense.md")
+    m.add_argument("--website", help="Website for --style ad, e.g. logexpense.site")
+    m.add_argument("--cta-text", help='Ad ending shown on screen (default "Try it free at <WEBSITE>")')
+    m.add_argument("--cta-voice", help="Ad ending as spoken (e.g. spell the site out for the voice)")
     m.add_argument("--topic", help="Specific topic; omit to let it pick from current trends")
     m.add_argument("--seconds", type=int, default=45, help="Target length (default 45)")
     m.add_argument("--visuals", default="stock", choices=["stock", "ai"],

@@ -1,5 +1,6 @@
 ﻿"""Gemini (free tier) calls: live trend research, then the script + per-platform post copy."""
 import random
+import re
 import time
 from datetime import date
 
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field
 from .config import GEMINI_API_KEY, MODEL
 
 client = genai.Client(api_key=GEMINI_API_KEY)
+YOUTUBE_ONLY_TAGS = re.compile(r"#(?:youtube)?shorts?(?:feed|video)?\b", re.IGNORECASE)
 
 # Free-tier models get busy (503) or rate limited (429); fall back through these.
 MODELS = list(dict.fromkeys([MODEL, "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"]))
@@ -53,10 +55,12 @@ class SocialPost(BaseModel):
 
     def full_caption(self) -> str:
         """Caption ready to paste: appends any hashtags the model left out of the caption text."""
-        present = {w.lower().rstrip(".,!?") for w in self.caption.split() if w.startswith("#")}
+        caption = YOUTUBE_ONLY_TAGS.sub("", self.caption)  # #shorts etc. look out of place on TikTok/IG
+        caption = re.sub(r"[ \t]{2,}", " ", caption).strip()
+        present = {w.lower().rstrip(".,!?") for w in caption.split() if w.startswith("#")}
         tags = [t if t.startswith("#") else f"#{t}" for t in self.hashtags]
-        missing = [t for t in tags if t.lower() not in present]
-        return f"{self.caption.rstrip()}\n\n{' '.join(missing)}" if missing else self.caption
+        missing = [t for t in tags if t.lower() not in present and not YOUTUBE_ONLY_TAGS.fullmatch(t)]
+        return f"{caption}\n\n{' '.join(missing)}" if missing else caption
 
 
 class VideoPackage(BaseModel):
@@ -113,8 +117,17 @@ STYLE_RULES = {
   varied wording (e.g. "Legend says...", "As the parable goes...", "In a village somewhere, the tale says..."),
   and topic must start with "Parable:". Never present an invented story as true.
 - End with the lesson, then a short question that invites comments.""",
+    "ad": """- 5-7 scenes, about {words} words of narration total: a short ad for the product in the brief below.
+- Structure: hook (a relatable money problem) -> the frustration -> the product as the simple fix,
+  showing 1-2 specific features from the brief -> a payoff line. The spoken call to action (website) is added
+  automatically after your last scene, so don't say the website or "link in bio" yourself.
+- Pick ONE angle for this ad (a specific audience + problem + feature) and put it in `topic`, e.g.
+  "Ad: roommates arguing over who paid the electric bill -> shared workspace".
+- Only claim what the brief lists as available. Never invent statistics, reviews, user counts, or prices.
+  Mention it's free to start. Never mention features the brief lists as not available yet.
+- Talk to the viewer ("you"), conversational, like a friend recommending it - not a TV announcer.""",
 }
-WORDS_PER_SECOND = {"facts": 2.6, "story": 2.3}
+WORDS_PER_SECOND = {"facts": 2.6, "story": 2.3, "ad": 2.5}
 
 
 HOOKS = {
@@ -138,19 +151,42 @@ HOOKS = {
         "a short, striking statement about life that the story will prove",
         "a time-and-place opener: a specific year, place, and person",
     ],
+    "ad": [
+        "a relatable 'POV:' moment (e.g. 'POV: it's rent day and nobody remembers who paid last month')",
+        "a direct question about a money problem the viewer has",
+        "a short, overheard-style line of dialogue in an argument about money",
+        "a 'stop doing X' line about tracking money in group chats or notebooks",
+        "a surprising, everyday money moment the viewer recognizes",
+        "a 'here's how we finally stopped fighting about money' opener",
+    ],
 }
 
 
+FORMATS = {"facts": "fun facts", "story": "short inspiring story", "ad": "short product ad"}
+
+
 def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts",
-                  avoid: list[str] = (), avoid_hooks: list[str] = ()) -> VideoPackage:
+                  avoid: list[str] = (), avoid_hooks: list[str] = (), brief: str = "",
+                  website: str = "") -> VideoPackage:
     hook = random.choice(HOOKS[style])
     recent = "\n".join(f"  - {h}" for h in avoid_hooks)
     words = int(target_seconds * WORDS_PER_SECOND[style])
+    product = f"""
+Product brief (the only source of truth for claims):
+<brief>
+{brief}
+</brief>
+""" if brief else ""
+    ad_copy = f"""- This is an ad for the product's own channel: in every caption and description, say it's free to start.
+- YouTube description: first line must include {website}.
+- TikTok/Instagram captions can't have clickable links: end the caption text with "Link in bio" and
+  mention the site name ({website}) once.
+""" if style == "ad" else ""
     prompt = f"""Write a faceless short-form video (vertical, ~{target_seconds}s) for the niche: {niche}.
-Format: {"fun facts" if style == "facts" else "short inspiring story"}
-Topic: {topic or "pick the best topic from the research below"}
-{"Already covered - pick a clearly different topic (different subject, not just a reworded title): " + "; ".join(avoid) if avoid and not topic else ""}
-
+Format: {FORMATS[style]}
+Topic: {topic or ("pick a fresh angle from the brief" if style == "ad" else "pick the best topic from the research below")}
+{"Already covered - pick a clearly different " + ("angle (different audience or problem or feature)" if style == "ad" else "topic (different subject, not just a reworded title)") + ": " + "; ".join(avoid) if avoid and not topic else ""}
+{product}
 Trend research (collected today):
 <research>
 {research or "No research available - rely on evergreen best practices and say so in trend_notes."}
@@ -170,10 +206,11 @@ Script rules:
 Post copy rules:
 - Use hashtags from the research where they genuinely fit; mix broad + niche tags.
 - Respect current platform hashtag limits found in the research (Instagram allows at most 5 per post).
+- Never use YouTube-only tags (#shorts, #youtubeshorts) on TikTok or Instagram.
 - TikTok: punchy caption under 150 chars before hashtags, 3-5 hashtags.
 - Instagram: 1-3 line caption with a call to action (save/share/comment), then hashtags.
 - YouTube: title must end with #Shorts; description ends with 3-5 hashtags.
-"""
+{ad_copy}"""
     resp = _generate(
         prompt, types.GenerateContentConfig(response_mime_type="application/json", response_schema=VideoPackage)
     )
