@@ -163,6 +163,7 @@ HOOKS = {
 
 
 FORMATS = {"facts": "fun facts", "story": "short inspiring story", "ad": "short product ad"}
+PRIVACY_CHANCE = 0.4  # share of ads that include the brief's privacy reassurance
 
 
 def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts",
@@ -177,7 +178,10 @@ Product brief (the only source of truth for claims):
 {brief}
 </brief>
 """ if brief else ""
-    ad_copy = f"""- This is an ad for the product's own channel: in every caption and description, say it's free to start.
+    privacy = ("- Include the privacy message from the brief as one short scene near the end, before the payoff.\n"
+               if style == "ad" and random.random() < PRIVACY_CHANCE else "")
+    ad_copy = f"""{privacy}- Follow the brief's Target audience section (situations, currency, hashtags).
+- This is an ad for the product's own channel: in every caption and description, say it's free to start.
 - YouTube description: first line must include {website}.
 - TikTok/Instagram captions can't have clickable links: end the caption text with "Link in bio" and
   mention the site name ({website}) once.

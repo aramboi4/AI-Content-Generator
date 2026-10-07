@@ -7,6 +7,23 @@ Only claims listed here may be used in ads. Update this file when the product ch
 **One-liner:** Track money together, not alone.
 **What it is:** A shared expense, loan, and budget tracker for families, roommates, and small teams who want one place to track money together.
 
+## Target audience
+Mainly the **Philippines**, but anyone is welcome, so keep the narration in clear English (no Tagalog in the
+voiceover; the voice can't pronounce it well) and use Filipino everyday situations, for example:
+- Sweldo on the 15th and 30th (kinsenas/katapusan) and where it all went
+- Paying back utang to relatives or friends, or lending to family
+- Splitting the Meralco/water bill and rent with roommates or in a boarding house/bedspace
+- Family budgets for groceries, tuition, and padala from an OFW family member
+- Keeping track of GCash, Maya, bank and cash balances in one place (entered manually)
+- Amounts in pesos (₱)
+Captions may add a short, natural Taglish line, and should mix Filipino hashtags (e.g. #budgetingph,
+#ipon, #pinoy, #moneytipsph) with global ones (e.g. #budgeting, #personalfinance).
+
+## Privacy message (use when asked to include it)
+Say it like: "Worried about privacy? Only you and your workspace members can see your data. Your account and
+loan names are encrypted, and it never connects to your bank." Keep the meaning; wording may vary.
+Never claim that all data, amounts, or everything entered is encrypted.
+
 ## Who it's for
 - Families tracking household spending, groceries, rent, shared subscriptions
 - Roommates splitting rent, bills, and groceries
@@ -20,7 +37,10 @@ Only claims listed here may be used in ads. Update this file when the product ch
 - **Summary Dashboard**: balances, subscriptions, budget usage, and loans at a glance.
 - **Monthly statements** of your workspace.
 - **Notifications** for due payments and budget thresholds, in-app and optionally by email.
-- **Privacy:** never connects to real bank or e-wallet accounts; everything is entered manually. Ledger and account names are encrypted in the database.
+- **Privacy:** only you and the members you invite to a workspace can see its data. It never connects to real bank or e-wallet accounts; everything is entered manually. Workspace, account, account-owner and loan names are encrypted in the database, so even someone with database access sees scrambled text.
+  - Amounts, dates and expense remarks are NOT encrypted (they're protected by login/workspace access). Never say "all your data is encrypted" or "everything you enter is encrypted".
+- **E-wallets and banks as accounts:** you can track GCash, Maya, bank and cash balances by entering them manually (no linking).
+- **Currency:** each workspace has its own currency symbol (e.g. ₱).
 - **Web app** (works in any browser) and a **free Android app** (download from the website; not on the Play Store yet).
 
 ## Plans

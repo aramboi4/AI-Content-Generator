@@ -92,6 +92,7 @@ jobs:
         run: |
           args=(--niche "$NICHE" --style "$STYLE" --publish-next "$PUBLISH")
           if [ "$STYLE" = "ad" ]; then
+            export ACG_TREND_REGION=PH   # ads target the Philippines first
             args+=(--brief ads/logexpense.md --website logexpense.site --seconds 30
                    --cta-voice "Try it free at log expense dot site.")
           fi
