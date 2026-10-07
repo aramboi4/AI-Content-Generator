@@ -1,5 +1,30 @@
 [
   {
+    "date": "2026-10-05T18:59",
+    "style": "facts",
+    "topic": "Everyday Inventions That Sound Totally Fake",
+    "title": "5 Crazy Everyday Facts That Sound 100% Fake #Shorts",
+    "youtube": null,
+    "folder": "20261005-185708-everyday-inventions-that-sound-totally-f"
+  },
+  {
+    "date": "2026-10-05T19:13",
+    "style": "story",
+    "topic": "Parable: The Lighthouse Keeper's Oil",
+    "title": "The Lighthouse Keeper Who Gave Away Everything #Shorts",
+    "youtube": "https://youtube.com/shorts/9oO56yv-niM",
+    "folder": "20261005-190926-parable-the-lighthouse-keeper-s-oil"
+  },
+  {
+    "date": "2026-10-06T00:42",
+    "style": "story",
+    "topic": "Parable: The Blind Man's Lantern",
+    "hook": "Cold mud squished between the toes of a blind traveler walking through a pitch-black forest with a glowing lantern.",
+    "title": "Why the Blind Man Carried a Lantern at Night #Shorts",
+    "youtube": null,
+    "folder": "20261006-004004-parable-the-blind-man-s-lantern"
+  },
+  {
     "date": "2026-10-06T00:46",
     "style": "facts",
     "topic": "Surprising Animal Facts",
@@ -27,6 +52,15 @@
     "hook": "There is an old story about a master carpenter who decided to retire after decades of building fine homes."
   },
   {
+    "date": "2026-10-06T02:10",
+    "style": "facts",
+    "topic": "Mind-Bending Geography Facts",
+    "hook": "Russia covers more surface area than the entire dwarf planet Pluto.",
+    "title": "These Geographic Facts Sound 100% Fake but Are Real! #Shorts",
+    "youtube": "https://youtube.com/shorts/yeEDfSezGnU",
+    "folder": "20261006-020824-mind-bending-geography-facts"
+  },
+  {
     "date": "2026-10-06T02:15",
     "style": "facts",
     "topic": "Surprising Plant Defense Mechanisms",
@@ -45,22 +79,6 @@
     "hook": "There is an old story of a young potter who wept over her collapsed vase."
   },
   {
-    "date": "2026-10-05T18:59",
-    "style": "facts",
-    "topic": "Everyday Inventions That Sound Totally Fake",
-    "title": "5 Crazy Everyday Facts That Sound 100% Fake #Shorts",
-    "youtube": null,
-    "folder": "20261005-185708-everyday-inventions-that-sound-totally-f"
-  },
-  {
-    "date": "2026-10-05T19:13",
-    "style": "story",
-    "topic": "Parable: The Lighthouse Keeper's Oil",
-    "title": "The Lighthouse Keeper Who Gave Away Everything #Shorts",
-    "youtube": "https://youtube.com/shorts/9oO56yv-niM",
-    "folder": "20261005-190926-parable-the-lighthouse-keeper-s-oil"
-  },
-  {
     "date": "2026-10-06T04:00",
     "style": "facts",
     "topic": "Weird Body Facts",
@@ -68,25 +86,6 @@
     "title": "Your Body Does THIS Every Few Days #Shorts",
     "youtube": null,
     "folder": "20261006-035930-weird-body-facts"
-  },
-  {
-<<<<<<< HEAD
-    "date": "2026-10-06T00:42",
-    "style": "story",
-    "topic": "Parable: The Blind Man's Lantern",
-    "hook": "Cold mud squished between the toes of a blind traveler walking through a pitch-black forest with a glowing lantern.",
-    "title": "Why the Blind Man Carried a Lantern at Night #Shorts",
-    "youtube": null,
-    "folder": "20261006-004004-parable-the-blind-man-s-lantern"
-  },
-  {
-    "date": "2026-10-06T02:10",
-    "style": "facts",
-    "topic": "Mind-Bending Geography Facts",
-    "hook": "Russia covers more surface area than the entire dwarf planet Pluto.",
-    "title": "These Geographic Facts Sound 100% Fake but Are Real! #Shorts",
-    "youtube": "https://youtube.com/shorts/yeEDfSezGnU",
-    "folder": "20261006-020824-mind-bending-geography-facts"
   },
   {
     "date": "2026-10-06T16:27",
@@ -105,7 +104,8 @@
     "title": "Mind Blowing Space Facts You Never Knew #Shorts",
     "youtube": "https://youtube.com/shorts/wMJqCJAxKIs",
     "folder": "20261007-011704-surprising-space-facts"
-=======
+  },
+  {
     "date": "2026-10-07T16:04",
     "style": "ad",
     "topic": "Ad: roommates arguing over split utility bills -> shared workspace",
@@ -113,6 +113,5 @@
     "title": "Stop fighting over bills with roommates #Shorts",
     "youtube": null,
     "folder": "20261007-160330-ad-roommates-arguing-over-split-utility-"
->>>>>>> c466a4b (Add weekly LogExpense ad videos)
   }
 ]
