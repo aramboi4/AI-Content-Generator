@@ -42,6 +42,8 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ACG_TZ: Asia/Manila
+      # Scheduled LogExpense ads are skipped before this date (Manila time). Clear it to run every Saturday.
+      ADS_START_DATE: "2026-10-17"
       IMAGEIO_FFMPEG_EXE: /usr/bin/ffmpeg
       PYTHONIOENCODING: utf-8
     steps:
@@ -71,19 +73,28 @@ jobs:
           fi
           echo "upload=$upload" >> "$GITHUB_OUTPUT"
           echo "style=$style" >> "$GITHUB_OUTPUT"
+          today=$(TZ=Asia/Manila date +%F)
+          if [ "$style" = ad ] && [ "${{ github.event_name }}" = "schedule" ] && [[ "$today" < "$ADS_START_DATE" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "LogExpense ads are paused until $ADS_START_DATE - skipping this run." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Install FFmpeg
+        if: steps.plan.outputs.skip != 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fontconfig
 
       - uses: actions/setup-python@v5
+        if: steps.plan.outputs.skip != 'true'
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install dependencies
+        if: steps.plan.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
       - name: Make video
+        if: steps.plan.outputs.skip != 'true'
         env:
           NICHE: ${{ steps.plan.outputs.niche }}
           STYLE: ${{ steps.plan.outputs.style }}
@@ -100,7 +111,7 @@ jobs:
           python -m acg make "${args[@]}"
 
       - name: Save history
-        if: success()
+        if: success() && steps.plan.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
@@ -110,7 +121,7 @@ jobs:
 
       - name: Keep video + posting guide for TikTok/Instagram
         id: artifact
-        if: always()
+        if: always() && steps.plan.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.plan.outputs.style }}-${{ github.run_number }}

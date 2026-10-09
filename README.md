@@ -60,7 +60,7 @@ Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (li
 |---|---|---|
 | 06:00 | fun facts | 08:00 |
 | 18:00 | inspiring story | 20:00 |
-| Saturday 10:00 | LogExpense ad (~30s) | Saturday 12:00 |
+| Saturday 10:00 | LogExpense ad (~30s), starting Oct 17 (`ADS_START_DATE` in the workflow) | Saturday 12:00 |
 
 Each run uploads the video with a YouTube scheduled publish time, so it goes live exactly on the hour even if GitHub starts the run late. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 14 days).
 
