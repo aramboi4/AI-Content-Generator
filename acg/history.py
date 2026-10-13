@@ -23,6 +23,11 @@ def recent_hooks(n: int = 15) -> list[str]:
     return [e["hook"] for e in load() if e.get("hook")][-n:]
 
 
+def recent_outros(n: int = 6) -> list[str]:
+    """Endings used by the most recent videos that had one."""
+    return [e["outro"] for e in load() if e.get("outro")][-n:] if n > 0 else []
+
+
 def add(entry: dict) -> None:
     entries = load()
     entries.append({"date": datetime.now().isoformat(timespec="minutes"), **entry})

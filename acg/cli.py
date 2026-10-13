@@ -113,7 +113,9 @@ def make(args: argparse.Namespace) -> None:
         outro_text = args.cta_text or f"Try it free at {args.website.upper()}"
         outro_spoken = args.cta_voice or outro_text
     elif config.OUTROS and not args.no_outro and (args.outro or random.random() < config.OUTRO_CHANCE):
-        outro_text = outro_spoken = random.choice(config.OUTROS)
+        # Avoid the endings used in the last few videos so it doesn't feel repetitive.
+        recent = set(history.recent_outros(min(6, len(config.OUTROS) - 1)))
+        outro_text = outro_spoken = random.choice([o for o in config.OUTROS if o not in recent] or config.OUTROS)
     if outro_text:
         print(f"    ending: {outro_text!r}")
     narrations = [s.narration for s in pkg.scenes] + ([outro_spoken] if outro_spoken else [])
@@ -236,7 +238,7 @@ def make(args: argparse.Namespace) -> None:
     guide = workdir / "POSTING_GUIDE.md"
     write_guide(pkg, guide, url)
     history.add({"style": args.style, "topic": pkg.topic, "hook": pkg.scenes[0].narration,
-                 "title": pkg.youtube.title, "youtube": url,
+                 "outro": outro_text if args.style != "ad" else None, "title": pkg.youtube.title, "youtube": url,
                  "folder": workdir.name})
     if os.getenv("GITHUB_STEP_SUMMARY"):  # show captions on the GitHub Actions run page
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:

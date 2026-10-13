@@ -31,8 +31,21 @@ INWORLD_MODEL = os.getenv("ACG_INWORLD_MODEL", "inworld-tts-1.5-max")
 PIPER_VOICE = os.getenv("ACG_PIPER_VOICE", "en_US-ryan-medium")  # fallback voice if edge-tts is blocked
 PIPER_DIR = ROOT / "assets" / "piper"  # model downloaded here on first use (~60 MB, not in git)
 # Ending call to action: added to OUTRO_CHANCE of videos, one phrase picked at random ("|"-separated).
-OUTROS = [p.strip() for p in os.getenv(
-    "ACG_OUTROS", "Follow for more videos like this!|Want to watch more videos? Follow for more!").split("|") if p.strip()]
+DEFAULT_OUTROS = "|".join([
+    "Follow for more videos like this!",
+    "Want to watch more videos? Follow for more!",
+    "Hit follow so you don't miss the next one!",
+    "Follow for a new one every day!",
+    "Enjoyed this? Follow for more!",
+    "Don't forget to follow for more!",
+    "Want more like this? Tap follow!",
+    "Follow now, there's more where that came from!",
+    "If you liked this, follow for more!",
+    "Follow along for more every day!",
+    "Stick around and follow for more!",
+    "Tap follow for your daily dose of these!",
+])
+OUTROS = [p.strip() for p in os.getenv("ACG_OUTROS", DEFAULT_OUTROS).split("|") if p.strip()]
 OUTRO_CHANCE = float(os.getenv("ACG_OUTRO_CHANCE", "0.5"))
 TREND_LANGUAGE = os.getenv("ACG_TREND_LANGUAGE", "en")  # audience for YouTube trend lookups
 TREND_REGION = os.getenv("ACG_TREND_REGION", "US")

@@ -73,7 +73,7 @@ Before creating `token.json`, set the OAuth app to **In production** (Google Clo
 
 To test without waiting: Actions → **Daily videos** → **Run workflow** (choose style, upload on/off).
 
-About half of the videos (picked at random) end with a ~5s call to action, spoken and shown on screen: either "Follow for more videos like this!" or "Want to watch more videos? Follow for more!". Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
+About half of the videos (picked at random) end with a ~5s call to action, spoken and shown on screen, picked from 12 variations ("Follow for more videos like this!", "Hit follow so you don't miss the next one!", "Enjoyed this? Follow for more!", ...). An ending isn't reused until at least 6 other endings have been used. Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
 
 ## Weekly product ad (LogExpense)
 
