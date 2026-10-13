@@ -61,8 +61,9 @@ def _inworld_synth(text: str, voice: str, rate: str, out: Path) -> list[dict]:
     body = r.json()
     out.write_bytes(base64.b64decode(body["audioContent"]))
     a = (body.get("timestampInfo") or {}).get("wordAlignment") or {}
-    words = [{"text": w, "start": s, "end": e} for w, s, e in
-             zip(a.get("words", []), a.get("wordStartTimeSeconds", []), a.get("wordEndTimeSeconds", []))]
+    words = [{"text": w.strip(), "start": s, "end": e} for w, s, e in
+             zip(a.get("words", []), a.get("wordStartTimeSeconds", []), a.get("wordEndTimeSeconds", []))
+             if re.search(r"\w", w)]  # Inworld also returns entries for spaces/punctuation
     return words or _estimate_words(text, probe_duration(out))
 
 
