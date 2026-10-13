@@ -39,6 +39,7 @@ jobs:
       YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      INWORLD_API_KEY: ${{ secrets.INWORLD_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ACG_TZ: Asia/Manila
