@@ -7,3 +7,4 @@ token.json
 output/
 assets/music/*
 !assets/music/.gitkeep
+assets/piper/

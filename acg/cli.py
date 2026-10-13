@@ -118,6 +118,9 @@ def make(args: argparse.Namespace) -> None:
         print(f"    ending: {outro_text!r}")
     narrations = [s.narration for s in pkg.scenes] + ([outro_spoken] if outro_spoken else [])
     voices = synthesize_scenes(narrations, args.voice, workdir, rate)
+    if voices and voices[0]["engine"] == "piper":
+        _warn("Microsoft's voice service (edge-tts) refused the connection, so this video uses the backup "
+              f"Piper voice. Details: {voices[0]['edge_error']}")
     outro = voices[len(pkg.scenes):]
 
     from . import images

@@ -24,6 +24,8 @@ YT_API_KEY = os.getenv("YT_API_KEY", "")
 WEB_SEARCH = os.getenv("ACG_WEB_SEARCH", "0") == "1"
 MODEL = os.getenv("ACG_MODEL", "gemini-flash-latest")
 VOICE = os.getenv("ACG_VOICE", "en-US-AndrewNeural")
+PIPER_VOICE = os.getenv("ACG_PIPER_VOICE", "en_US-ryan-medium")  # fallback voice if edge-tts is blocked
+PIPER_DIR = ROOT / "assets" / "piper"  # model downloaded here on first use (~60 MB, not in git)
 # Ending call to action: added to OUTRO_CHANCE of videos, one phrase picked at random ("|"-separated).
 OUTROS = [p.strip() for p in os.getenv(
     "ACG_OUTROS", "Follow for more videos like this!|Want to watch more videos? Follow for more!").split("|") if p.strip()]
