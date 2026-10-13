@@ -108,7 +108,49 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     out.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
-def final_render(segments: list[Path], narration: Path, captions: Path, out: Path, music_volume: float = 0.10) -> None:
+CARD_FILL = (74, 45, 100, 200)  # purple, slightly see-through
+
+
+def render_card(text: str, out: Path, style: str = "classic", center_y: int | None = None,
+                top: int = 330, font_size: int = 92, max_width: int = 900) -> Path:
+    """One rounded purple box with the text wrapped and centered inside it (full-frame transparent PNG).
+    Drawn as a single shape, so multi-line text never produces overlapping per-line boxes."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    font = ImageFont.truetype(str(FONTS_DIR / ("Anton-Regular.ttf" if style == "bold" else "ArchivoBlack-Regular.ttf")),
+                              font_size)
+    pad_x, pad_y, gap = 48, 36, int(font_size * 0.22)
+    draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    lines, line = [], ""
+    for word in text.upper().split():
+        trial = f"{line} {word}".strip()
+        if line and draw.textlength(trial, font=font) > max_width - 2 * pad_x:
+            lines.append(line)
+            line = word
+        else:
+            line = trial
+    lines.append(line)
+    ascent, descent = font.getmetrics()
+    line_h = ascent + descent
+    box_w = int(max(draw.textlength(l, font=font) for l in lines)) + 2 * pad_x
+    box_h = len(lines) * line_h + (len(lines) - 1) * gap + 2 * pad_y
+    x0 = (WIDTH - box_w) // 2
+    y0 = (center_y - box_h // 2) if center_y is not None else top
+    img = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([x0, y0, x0 + box_w, y0 + box_h], radius=28, fill=CARD_FILL)
+    y = y0 + pad_y
+    for l in lines:
+        w = d.textlength(l, font=font)
+        d.text(((WIDTH - w) / 2, y), l, font=font, fill="white")
+        y += line_h + gap
+    img.save(out)
+    return out
+
+
+def final_render(segments: list[Path], narration: Path, captions: Path, out: Path, music_volume: float = 0.10,
+                 cards: list[tuple[Path, float, float, bool]] = ()) -> None:
+    """cards: (png, start, end, fade_in) overlays such as the title and the follow-for-more box."""
     workdir = out.parent
     listfile = workdir / "segments.txt"
     listfile.write_text("".join(f"file '{p.name}'\n" for p in segments), encoding="utf-8")
@@ -116,14 +158,22 @@ def final_render(segments: list[Path], narration: Path, captions: Path, out: Pat
     tracks = sorted(p for p in MUSIC_DIR.glob("*") if p.suffix.lower() in {".mp3", ".m4a", ".wav"}) if MUSIC_DIR.exists() else []
     args = ["-f", "concat", "-safe", "0", "-i", listfile.name, "-i", narration.name]
     fonts = os.path.relpath(FONTS_DIR, workdir).replace("\\", "/")
-    vf = f"[0:v]subtitles={captions.name}:fontsdir={fonts}[v]"
+    filters = [f"[0:v]subtitles={captions.name}:fontsdir={fonts}[v0]"]
     if tracks:
         args += ["-stream_loop", "-1", "-i", str(random.choice(tracks))]
         af = (f"[2:a]volume={music_volume}[m];"
               "[1:a][m]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]")
     else:
         af = "[1:a]anull[a]"
-    args += ["-filter_complex", f"{vf};{af}", "-map", "[v]", "-map", "[a]",
+    first = 3 if tracks else 2
+    for i, (png, start, end, fade_in) in enumerate(cards):
+        args += ["-loop", "1", "-framerate", str(FPS), "-t", f"{end:.3f}", "-i", png.name]
+        fades = (f"fade=t=in:st={start:.3f}:d=0.2:alpha=1," if fade_in else "") + \
+                f"fade=t=out:st={max(start, end - 0.3):.3f}:d=0.3:alpha=1"
+        filters.append(f"[{first + i}:v]format=rgba,{fades}[c{i}]")
+        filters.append(f"[v{i}][c{i}]overlay=0:0:enable='between(t,{start:.3f},{end:.3f})'[v{i + 1}]")
+    filters.append(f"[v{len(cards)}]null[v]")
+    args += ["-filter_complex", ";".join(filters + [af]), "-map", "[v]", "-map", "[a]",
              "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
              "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out.name]
     _run(args, cwd=workdir)

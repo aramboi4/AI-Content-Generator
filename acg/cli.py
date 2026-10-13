@@ -60,7 +60,8 @@ def make(args: argparse.Namespace) -> None:
     from .footage import fetch_clip, provider
     from . import history
     from .guide import write_guide
-    from .media import concat_audio, final_render, render_segment, write_captions
+    from .config import HEIGHT
+    from .media import concat_audio, final_render, render_card, render_segment, write_captions
     from .trends import youtube_trends
     from .voice import synthesize_scenes
     from .writer import research_trends, write_package
@@ -217,12 +218,19 @@ def make(args: argparse.Namespace) -> None:
 
     print("5/6 Adding captions, music and final render...")
     narration = workdir / "narration.m4a"
-    concat_audio([v["audio"] for v in voices], narration)
+    concat_audio([v["audio"] for v in voices + outro], narration)  # outro voice comes last
     captions = workdir / "captions.ass"
-    write_captions(words, captions, style=args.caption_style, title="" if args.no_title else pkg.tiktok.on_screen_title,
-                   outro=(outro_at, t, outro_text) if outro_at is not None else None)
+    write_captions(words, captions, style=args.caption_style)
+    # Title (first 3s, also the cover frame) and the follow-for-more ending are single purple boxes.
+    cards = []
+    if not args.no_title:
+        cards.append((render_card(pkg.tiktok.on_screen_title, workdir / "card_title.png", args.caption_style,
+                                  top=330, font_size=86, max_width=990), 0.0, min(3.0, t), False))
+    if outro_at is not None:
+        cards.append((render_card(outro_text, workdir / "card_outro.png", args.caption_style,
+                                  center_y=HEIGHT // 2, font_size=80, max_width=990), outro_at, t, True))
     video = workdir / "video.mp4"
-    final_render(segments, narration, captions, video)
+    final_render(segments, narration, captions, video, cards=cards)
 
     url, publish_at = None, None
     STATE["stage"] = "upload"
@@ -256,7 +264,7 @@ def make(args: argparse.Namespace) -> None:
             print(f"    Telegram send failed: {e}")
     if not args.keep_temp:
         for p in workdir.glob("*"):
-            if p.name.startswith(("clip_", "seg_", "voice_", "extra")) or p.suffix == ".txt":
+            if p.name.startswith(("clip_", "seg_", "voice_", "extra", "card_")) or p.suffix == ".txt":
                 p.unlink()
     print(f"\nDone: {video}\nPosting guide: {workdir / 'POSTING_GUIDE.md'}  ({t:.0f}s video)")
 
