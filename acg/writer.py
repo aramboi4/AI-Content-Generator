@@ -8,7 +8,7 @@ from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, Field
 
-from .config import GEMINI_API_KEY, MODEL
+from .config import GEMINI_API_KEY, INWORLD_API_KEY, MODEL
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 YOUTUBE_ONLY_TAGS = re.compile(r"#(?:youtube)?shorts?(?:feed|video)?\b", re.IGNORECASE)
@@ -171,7 +171,8 @@ def write_package(niche: str, topic: str | None, research: str, target_seconds: 
                   website: str = "") -> VideoPackage:
     hook = random.choice(HOOKS[style])
     recent = "\n".join(f"  - {h}" for h in avoid_hooks)
-    words = int(target_seconds * WORDS_PER_SECOND[style])
+    # Inworld's Clive/Dennis speak noticeably faster than the Microsoft voice, so ask for more words.
+    words = int(target_seconds * WORDS_PER_SECOND[style] * (1.3 if INWORLD_API_KEY else 1.0))
     product = f"""
 Product brief (the only source of truth for claims):
 <brief>
@@ -222,3 +223,50 @@ Post copy rules:
     if pkg is None:
         pkg = VideoPackage.model_validate_json(resp.text or "{}")
     return pkg
+
+
+class ExtraScenes(BaseModel):
+    scenes: list[Scene]
+
+
+EXTEND_RULES = {
+    "facts": "Add {n} more fact scene(s) on the same topic, each a new, accurate, surprising fact that isn't "
+             "already in the script. They are inserted just before the final scene.",
+    "story": "Add {n} more scene(s) that deepen the middle of the story (more of the struggle, a vivid detail, "
+             "or a setback before the turning point). They are inserted just before the last two scenes, so "
+             "the turning point and the lesson stay at the end. Keep the same characters, tone and facts.",
+    "ad": "Add {n} more scene(s) that show one more real feature from the brief solving the same problem. "
+          "They are inserted just before the final scene.",
+}
+
+
+def extend_package(pkg: VideoPackage, style: str, missing_seconds: float) -> tuple[int, list[Scene]]:
+    """Writes extra scenes when the video came out too short. Returns (insert index, new scenes)."""
+    n = max(1, min(3, round(missing_seconds / 6)))
+    words = int(missing_seconds * WORDS_PER_SECOND[style] * (1.3 if INWORLD_API_KEY else 1.0)) + 5
+    script = "\n".join(f"{i + 1}. {s.narration}" for i, s in enumerate(pkg.scenes))
+    prompt = f"""This short video script is about {missing_seconds:.0f} seconds too short.
+Topic: {pkg.topic}
+Current script (one line per scene):
+{script}
+
+{EXTEND_RULES[style].format(n=n)}
+Return ONLY the {n} new scene(s) - do not repeat or include any existing scene.
+Write about {words} words of narration in total across the new scenes, in the same voice and style:
+plain spoken English, short sentences, no emojis, no stage directions. Each new scene needs narration,
+visual_queries (simple literal stock-footage words) and image_prompt, like the existing scenes."""
+    resp = _generate(prompt, types.GenerateContentConfig(response_mime_type="application/json",
+                                                         response_schema=ExtraScenes))
+    extra = resp.parsed if isinstance(resp.parsed, ExtraScenes) else ExtraScenes.model_validate_json(resp.text or "{}")
+    # The model sometimes echoes the whole script back: keep only genuinely new scenes, at most n.
+    def norm(t: str) -> str:
+        return re.sub(r"\W+", " ", t).strip().lower()
+    existing = {norm(s.narration) for s in pkg.scenes}
+    new, seen = [], set()
+    for s in extra.scenes:
+        k = norm(s.narration)
+        if k and k not in existing and k not in seen:
+            seen.add(k)
+            new.append(s)
+    at = max(1, len(pkg.scenes) - (2 if style == "story" else 1))
+    return at, new[:n]

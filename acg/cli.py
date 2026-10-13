@@ -125,6 +125,29 @@ def make(args: argparse.Namespace) -> None:
         _warn("Microsoft's voice service (edge-tts) refused the connection, so this video uses the backup "
               f"Piper voice. Details: {voices[0]['edge_error']}")
     outro = voices[len(pkg.scenes):]
+    voices = voices[:len(pkg.scenes)]
+
+    # Make sure the main content (not counting the outro) is at least --min-seconds long.
+    from .writer import extend_package
+    for round_ in range(1, 3):
+        content = sum(v["duration"] for v in voices)
+        if content >= args.min_seconds:
+            break
+        print(f"    content is {content:.0f}s (< {args.min_seconds}s) - adding more "
+              f"{'facts' if args.style == 'facts' else 'scenes'}...")
+        at, extra = extend_package(pkg, args.style, args.min_seconds - content + 2)
+        if not extra:
+            continue
+        extra_voices = synthesize_scenes([s.narration for s in extra], args.voice, workdir, rate,
+                                         prefix=f"extra{round_}")
+        pkg.scenes[at:at] = extra
+        voices[at:at] = extra_voices
+    else:
+        if sum(v["duration"] for v in voices) < args.min_seconds:
+            _warn(f"Video content is only {sum(v['duration'] for v in voices):.0f}s (target {args.min_seconds}s).")
+    (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
+    print(f"    content length: {sum(v['duration'] for v in voices):.0f}s in {len(pkg.scenes)} scenes"
+          + (" + outro" if outro else ""))
 
     from . import images
 
@@ -231,7 +254,7 @@ def make(args: argparse.Namespace) -> None:
             print(f"    Telegram send failed: {e}")
     if not args.keep_temp:
         for p in workdir.glob("*"):
-            if p.name.startswith(("clip_", "seg_", "voice_")) or p.suffix == ".txt":
+            if p.name.startswith(("clip_", "seg_", "voice_", "extra")) or p.suffix == ".txt":
                 p.unlink()
     print(f"\nDone: {video}\nPosting guide: {workdir / 'POSTING_GUIDE.md'}  ({t:.0f}s video)")
 
@@ -268,6 +291,8 @@ def main() -> None:
     m.add_argument("--cta-voice", help="Ad ending as spoken (e.g. spell the site out for the voice)")
     m.add_argument("--topic", help="Specific topic; omit to let it pick from current trends")
     m.add_argument("--seconds", type=int, default=45, help="Target length (default 45)")
+    m.add_argument("--min-seconds", type=int, default=30,
+                   help="Minimum length of the main content, not counting the outro (default 30)")
     m.add_argument("--visuals", default="stock", choices=["stock", "ai"],
                    help="stock footage (default) or AI 3D images (needs free Cloudflare setup)")
     m.add_argument("--seed", type=int, default=7, help="Image seed; change it for a different-looking character")

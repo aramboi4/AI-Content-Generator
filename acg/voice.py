@@ -95,7 +95,7 @@ def _estimate_words(text: str, duration: float) -> list[dict]:
     return words
 
 
-def _piper_all(narrations: list[str], rate: str, workdir: Path) -> list[tuple[Path, list[dict]]]:
+def _piper_all(narrations: list[str], rate: str, workdir: Path, prefix: str = "voice") -> list[tuple[Path, list[dict]]]:
     from piper import PiperVoice, SynthesisConfig
 
     model = PIPER_DIR / f"{PIPER_VOICE}.onnx"
@@ -108,17 +108,18 @@ def _piper_all(narrations: list[str], rate: str, workdir: Path) -> list[tuple[Pa
     cfg = SynthesisConfig(length_scale=1 / speed)
     out = []
     for i, text in enumerate(narrations):
-        path = workdir / f"voice_{i:02d}.wav"
+        path = workdir / f"{prefix}_{i:02d}.wav"
         with wave.open(str(path), "wb") as w:
             voice.synthesize_wav(text, w, syn_config=cfg)
         out.append((path, _estimate_words(text, probe_duration(path))))
     return out
 
 
-def synthesize_scenes(narrations: list[str], voice: str, workdir: Path, rate: str = "+8%") -> list[dict]:
+def synthesize_scenes(narrations: list[str], voice: str, workdir: Path, rate: str = "+8%",
+                      prefix: str = "voice") -> list[dict]:
     """Returns per scene: {"audio", "duration", "words", "engine"} with scene-local timings.
     The whole video uses one engine, so the voice never changes mid-video."""
-    paths = [workdir / f"voice_{i:02d}.mp3" for i in range(len(narrations))]
+    paths = [workdir / f"{prefix}_{i:02d}.mp3" for i in range(len(narrations))]
     inworld_error = None
     if INWORLD_API_KEY:
         try:
@@ -145,4 +146,4 @@ def synthesize_scenes(narrations: list[str], voice: str, workdir: Path, rate: st
         p.unlink(missing_ok=True)
     return [{"audio": p, "duration": probe_duration(p), "words": w, "engine": "piper",
              "inworld_error": inworld_error, "edge_error": f"{type(error).__name__}: {str(error)[:150]}"}
-            for p, w in _piper_all(narrations, rate, workdir)]
+            for p, w in _piper_all(narrations, rate, workdir, prefix)]
