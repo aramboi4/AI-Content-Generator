@@ -226,12 +226,6 @@ def make(args: argparse.Namespace) -> None:
     if not args.no_title:
         cards.append((render_card(pkg.tiktok.on_screen_title, workdir / "card_title.png", args.caption_style,
                                   top=330, font_size=86, max_width=990), 0.0, min(3.0, t), False))
-        # Smaller title bar for the rest of the video, so whatever frame YouTube auto-picks as the
-        # thumbnail still shows the title (custom Shorts thumbnails aren't shown on every channel).
-        bar_end = outro_at if outro_at is not None else t
-        if not args.no_title_bar and bar_end > 3.2:
-            cards.append((render_card(pkg.tiktok.on_screen_title, workdir / "card_bar.png", args.caption_style,
-                                      top=150, font_size=58, max_width=1000), 2.9, bar_end, True))
     if outro_at is not None:
         cards.append((render_card(outro_text, workdir / "card_outro.png", args.caption_style,
                                   center_y=HEIGHT // 2, font_size=80, max_width=990), outro_at, t, True))
@@ -332,8 +326,6 @@ def main() -> None:
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     m.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time (ACG_TZ, default Asia/Manila)")
     m.add_argument("--no-title", action="store_true", help="Don't show the title card at the start")
-    m.add_argument("--no-title-bar", action="store_true",
-                   help="Don't keep a small title bar on screen after the opening title")
     m.add_argument("--outro", action="store_true", help='Always add the "follow for more" ending (default: 50%% chance)')
     m.add_argument("--no-outro", action="store_true", help='Never add the "follow for more" ending')
     m.add_argument("--keep-temp", action="store_true", help="Keep intermediate files")
