@@ -52,6 +52,14 @@ Each run creates `output/<date>-<topic>/` containing:
 
 Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (list voices: `.\.venv\Scripts\edge-tts --list-voices`), `--no-research`, `--privacy private|unlisted|public`, `--keep-temp`.
 
+## Branding (Daily Cup of Goodness)
+
+- **Watermark:** the cup icon (`assets/brand/logo_icon.png`) sits small in the top-right corner until the ending. `--no-watermark` turns it off.
+- **Ending card:** when a video has a follow-for-more ending, the full logo (`assets/brand/logo.png`) appears above it.
+- **Comments prompt:** when the last line is a question, about half of the videos add one of several prompts such as "Let me know in the comments!" (`ACG_COMMENT_CTA_CHANCE`, default `0.5`).
+
+To change the logo, replace `assets/brand/logo_original.png` and ask Claude to regenerate the transparent versions.
+
 ## Daily automation (GitHub Actions, free)
 
 `.github/workflows/daily.yml` runs twice a day:

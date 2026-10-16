@@ -61,7 +61,8 @@ def make(args: argparse.Namespace) -> None:
     from . import history
     from .guide import write_guide
     from .config import HEIGHT
-    from .media import concat_audio, final_render, render_card, render_segment, write_captions
+    from .media import (add_logo_above, concat_audio, final_render, render_card, render_segment,
+                        render_watermark, write_captions)
     from .trends import youtube_trends
     from .voice import synthesize_scenes
     from .writer import research_trends, write_package
@@ -119,6 +120,12 @@ def make(args: argparse.Namespace) -> None:
         outro_text = outro_spoken = random.choice([o for o in config.OUTROS if o not in recent] or config.OUTROS)
     if outro_text:
         print(f"    ending: {outro_text!r}")
+    # When the video ends on a question, about half the time invite viewers to answer in the comments.
+    last = pkg.scenes[-1]
+    if args.style != "ad" and last.narration.rstrip().endswith("?") and random.random() < config.COMMENT_CTA_CHANCE \
+            and "comment" not in last.narration.lower():
+        last.narration = f"{last.narration.rstrip()} {random.choice(config.COMMENT_CTAS)}"
+        print(f"    comment prompt: {last.narration!r}")
     narrations = [s.narration for s in pkg.scenes] + ([outro_spoken] if outro_spoken else [])
     voices = synthesize_scenes(narrations, args.voice, workdir, rate)
     if voices and voices[0].get("inworld_error"):
@@ -226,9 +233,16 @@ def make(args: argparse.Namespace) -> None:
     if not args.no_title:
         cards.append((render_card(pkg.tiktok.on_screen_title, workdir / "card_title.png", args.caption_style,
                                   top=330, font_size=86, max_width=990), 0.0, min(3.0, t), False))
+    logo, icon = config.BRAND_DIR / "logo.png", config.BRAND_DIR / "logo_icon.png"
     if outro_at is not None:
-        cards.append((render_card(outro_text, workdir / "card_outro.png", args.caption_style,
-                                  center_y=HEIGHT // 2, font_size=80, max_width=990), outro_at, t, True))
+        card = render_card(outro_text, workdir / "card_outro.png", args.caption_style,
+                           center_y=HEIGHT // 2 + 120, font_size=80, max_width=990)
+        if logo.exists():  # channel logo above the follow-for-more box
+            add_logo_above(card, logo)
+        cards.append((card, outro_at, t, True))
+    if icon.exists() and not args.no_watermark:  # small channel watermark until the ending card
+        cards.append((render_watermark(icon, workdir / "card_watermark.png"), 0.0,
+                      outro_at if outro_at is not None else t, False))
     video = workdir / "video.mp4"
     final_render(segments, narration, captions, video, cards=cards)
 
@@ -326,6 +340,7 @@ def main() -> None:
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     m.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time (ACG_TZ, default Asia/Manila)")
     m.add_argument("--no-title", action="store_true", help="Don't show the title card at the start")
+    m.add_argument("--no-watermark", action="store_true", help="Don't show the channel logo watermark")
     m.add_argument("--outro", action="store_true", help='Always add the "follow for more" ending (default: 50%% chance)')
     m.add_argument("--no-outro", action="store_true", help='Never add the "follow for more" ending')
     m.add_argument("--keep-temp", action="store_true", help="Keep intermediate files")

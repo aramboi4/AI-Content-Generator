@@ -9,6 +9,8 @@ load_dotenv(ROOT / ".env")
 OUTPUT_DIR = ROOT / "output"
 MUSIC_DIR = ROOT / "assets" / "music"
 FONTS_DIR = ROOT / "assets" / "fonts"
+BRAND_DIR = ROOT / "assets" / "brand"  # logo.png (full logo, ending card), logo_icon.png (watermark)
+CHANNEL_NAME = os.getenv("ACG_CHANNEL_NAME", "Daily Cup of Goodness")
 YT_CLIENT_SECRET = ROOT / "client_secret.json"
 YT_TOKEN = ROOT / "token.json"
 
@@ -46,7 +48,11 @@ DEFAULT_OUTROS = "|".join([
     "Tap follow for your daily dose of these!",
 ])
 OUTROS = [p.strip() for p in os.getenv("ACG_OUTROS", DEFAULT_OUTROS).split("|") if p.strip()]
-OUTRO_CHANCE = float(os.getenv("ACG_OUTRO_CHANCE", "0.5"))
+COMMENT_CTAS = ["Let me know in the comments!", "Tell me in the comments!", "Drop your answer in the comments!",
+                "Let me know what you think below!", "Share your answer in the comments!",
+                "I'd love to hear yours in the comments!"]
+COMMENT_CTA_CHANCE = float(os.getenv("ACG_COMMENT_CTA_CHANCE", "0.5"))  # when the video ends on a question
+OUTRO_CHANCE =float(os.getenv("ACG_OUTRO_CHANCE", "0.5"))
 TREND_LANGUAGE = os.getenv("ACG_TREND_LANGUAGE", "en")  # audience for YouTube trend lookups
 TREND_REGION = os.getenv("ACG_TREND_REGION", "US")
 TIMEZONE = os.getenv("ACG_TZ", "Asia/Manila")  # for --publish-next

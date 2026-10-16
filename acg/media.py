@@ -111,6 +111,41 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 CARD_FILL = (74, 45, 100, 200)  # purple, slightly see-through
 
 
+def render_watermark(icon: Path, out: Path, size: int = 150, opacity: float = 0.8, margin: int = 40,
+                     top: int = 140) -> Path:
+    """Full-frame transparent PNG with the channel icon in the top-right corner (clear of the
+    TikTok/Reels/Shorts buttons on the right and the captions in the middle)."""
+    from PIL import Image
+
+    logo = Image.open(icon).convert("RGBA")
+    logo = logo.resize((int(logo.width * size / logo.height), size), Image.LANCZOS)
+    alpha = logo.getchannel("A").point(lambda a: int(a * opacity))
+    logo.putalpha(alpha)
+    img = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+    img.alpha_composite(logo, (WIDTH - logo.width - margin, top))
+    img.save(out)
+    return out
+
+
+def add_logo_above(card: Path, logo: Path, width: int = 420, gap: int = 40) -> Path:
+    """Places the full channel logo centered just above the box in a rendered card PNG."""
+    from PIL import Image
+
+    img = Image.open(card).convert("RGBA")
+    box_top = img.getchannel("A").getbbox()[1]
+    from PIL import ImageDraw
+
+    lg = Image.open(logo).convert("RGBA")
+    lg = lg.resize((width, int(lg.height * width / lg.width)), Image.LANCZOS)
+    x, y = (WIDTH - lg.width) // 2, max(30, box_top - gap - lg.height)
+    pad = 30  # dark backdrop keeps the logo and its text readable on busy footage
+    ImageDraw.Draw(img).rounded_rectangle([x - pad, y - pad, x + lg.width + pad, y + lg.height + pad],
+                                          radius=36, fill=(0, 0, 0, 150))
+    img.alpha_composite(lg, (x, y))
+    img.save(card)
+    return card
+
+
 def make_thumbnail(video: Path, out: Path, first_segment: Path | None = None, title: str = "",
                    style: str = "classic") -> Path:
     """JPEG for YouTube's custom thumbnail (max 2 MB): the first scene's clean frame (no captions) with a big
