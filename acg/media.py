@@ -111,6 +111,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 CARD_FILL = (74, 45, 100, 200)  # purple, slightly see-through
 
 
+def make_thumbnail(video: Path, out: Path, first_segment: Path | None = None, card: Path | None = None) -> Path:
+    """JPEG for YouTube's custom thumbnail (max 2 MB): the first scene's clean frame (no captions) with the
+    title box on top. Without the segment/card (e.g. re-uploading an old folder), uses the video's first frame."""
+    from PIL import Image
+
+    if first_segment and first_segment.exists() and card and card.exists():
+        frame = out.with_name("thumb_frame.png")
+        _run(["-ss", "0.1", "-i", str(first_segment), "-frames:v", "1", str(frame)])
+        img = Image.alpha_composite(Image.open(frame).convert("RGBA").resize((WIDTH, HEIGHT)), Image.open(card))
+        img.convert("RGB").save(out, quality=88)
+        frame.unlink(missing_ok=True)
+    else:
+        _run(["-ss", "0", "-i", str(video), "-frames:v", "1", "-q:v", "3", str(out)])
+    if out.stat().st_size > 2 * 1024 * 1024:  # YouTube rejects bigger files
+        Image.open(out).resize((720, 1280)).save(out, quality=80)
+    return out
+
+
 def render_card(text: str, out: Path, style: str = "classic", center_y: int | None = None,
                 top: int = 330, font_size: int = 92, max_width: int = 900) -> Path:
     """One rounded purple box with the text wrapped and centered inside it (full-frame transparent PNG).

@@ -238,7 +238,13 @@ def make(args: argparse.Namespace) -> None:
         print("6/6 Uploading to YouTube...")
         from .youtube import upload
         publish_at = _publish_at(args)
-        url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=publish_at)
+        from . import youtube
+        from .media import make_thumbnail
+        thumb = (make_thumbnail(video, workdir / "thumbnail.jpg", segments[0], workdir / "card_title.png")
+                 if not args.no_title else None)
+        url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=publish_at, thumbnail=thumb)
+        if youtube.LAST_THUMBNAIL_ERROR:
+            _warn(youtube.LAST_THUMBNAIL_ERROR)
         print(f"    {url}" + (f" (goes public {publish_at})" if publish_at else ""))
     else:
         print("6/6 Skipping YouTube upload (use --upload).")
@@ -283,7 +289,12 @@ def upload_existing(args: argparse.Namespace) -> None:
         sys.exit(f"{folder} needs video.mp4 and package.json (made by 'acg make').")
     pkg = VideoPackage.model_validate_json(pkg_file.read_text(encoding="utf-8-sig"))
     print(f"Uploading '{pkg.youtube.title}' ({args.privacy})...")
-    url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=_publish_at(args))
+    from . import youtube
+    from .media import make_thumbnail
+    url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=_publish_at(args),
+                 thumbnail=make_thumbnail(video, folder / "thumbnail.jpg"))
+    if youtube.LAST_THUMBNAIL_ERROR:
+        print(f"Warning: {youtube.LAST_THUMBNAIL_ERROR}")
     write_guide(pkg, folder / "POSTING_GUIDE.md", url)
     print(f"Done: {url}")
 

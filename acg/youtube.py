@@ -32,7 +32,28 @@ def _credentials() -> Credentials:
     return creds
 
 
-def upload(video: Path, post: YouTubePost, privacy: str = "private", publish_at: str | None = None) -> str:
+LAST_THUMBNAIL_ERROR: str | None = None  # set when the custom thumbnail couldn't be applied
+
+
+def _set_thumbnail(yt, video_id: str, thumbnail: Path) -> None:
+    """Custom thumbnail so YouTube shows the title card instead of a random mid-video frame.
+    Only works on channels with custom thumbnails enabled (phone-verified); never fails the upload."""
+    global LAST_THUMBNAIL_ERROR
+    LAST_THUMBNAIL_ERROR = None
+    try:
+        yt.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(thumbnail), mimetype="image/jpeg")).execute()
+    except Exception as e:
+        text = str(e)
+        if "forbidden" in text.lower() or "403" in text:
+            LAST_THUMBNAIL_ERROR = ("YouTube refused the custom thumbnail - custom thumbnails need a phone-verified "
+                                    "channel: https://www.youtube.com/verify")
+        else:
+            LAST_THUMBNAIL_ERROR = f"Custom thumbnail failed: {text[:150]}"
+        print(f"    {LAST_THUMBNAIL_ERROR}")
+
+
+def upload(video: Path, post: YouTubePost, privacy: str = "private", publish_at: str | None = None,
+           thumbnail: Path | None = None) -> str:
     """Returns the video URL. publish_at (ISO 8601 UTC, e.g. 2026-10-05T17:00:00Z) schedules it."""
     status = {
         "privacyStatus": "private" if publish_at else privacy,
@@ -56,4 +77,6 @@ def upload(video: Path, post: YouTubePost, privacy: str = "private", publish_at:
     resp = None
     while resp is None:
         _, resp = req.next_chunk()
+    if thumbnail and thumbnail.exists():
+        _set_thumbnail(yt, resp["id"], thumbnail)
     return f"https://youtube.com/shorts/{resp['id']}"
