@@ -43,7 +43,8 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ACG_TZ: Asia/Manila
-      # Scheduled LogExpense ads are skipped before this date (Manila time). Clear it to run every Saturday.
+      # Scheduled LogExpense ads: set ADS_PAUSED to "false" to run them every Saturday from ADS_START_DATE.
+      ADS_PAUSED: "true"   # paused until LogExpense payments are ready (PayMongo verification pending)
       ADS_START_DATE: "2026-10-17"
       IMAGEIO_FFMPEG_EXE: /usr/bin/ffmpeg
       PYTHONIOENCODING: utf-8
@@ -75,9 +76,9 @@ jobs:
           echo "upload=$upload" >> "$GITHUB_OUTPUT"
           echo "style=$style" >> "$GITHUB_OUTPUT"
           today=$(TZ=Asia/Manila date +%F)
-          if [ "$style" = ad ] && [ "${{ github.event_name }}" = "schedule" ] && [[ "$today" < "$ADS_START_DATE" ]]; then
+          if [ "$style" = ad ] && [ "${{ github.event_name }}" = "schedule" ] && { [ "$ADS_PAUSED" = "true" ] || [[ "$today" < "$ADS_START_DATE" ]]; }; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "LogExpense ads are paused until $ADS_START_DATE - skipping this run." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "LogExpense ads are paused (ADS_PAUSED=$ADS_PAUSED, start date $ADS_START_DATE) - skipping this run." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Install FFmpeg
