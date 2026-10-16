@@ -6,7 +6,7 @@ Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels)
 2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags
 3. **Voiceover** – free Microsoft neural voices via `edge-tts`, with word timings
 4. **Visuals** – AI 3D cartoon images (Cloudflare Workers AI, free daily allowance) with the same character in every scene, or free stock clips from Pixabay/Pexels
-5. **Render** – 1080×1920 video with slow zoom in/out, one-word pop-in captions (Anton font), a purple title card, optional background music
+5. **Render** – 1080×1920 video with slow zoom in/out, pop-in captions, a purple title card for the first 3 seconds and then a small title bar for the rest of the video (so any frame YouTube picks as the thumbnail shows the title; `--no-title-bar` turns it off), optional background music. After upload, a custom thumbnail with the title is set too (needs a phone-verified channel)
 6. **Publish** – auto-upload to YouTube; a `POSTING_GUIDE.md` with copy-paste captions for TikTok and Instagram
 
 ## Setup
