@@ -111,15 +111,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 CARD_FILL = (74, 45, 100, 200)  # purple, slightly see-through
 
 
-def make_thumbnail(video: Path, out: Path, first_segment: Path | None = None, card: Path | None = None) -> Path:
-    """JPEG for YouTube's custom thumbnail (max 2 MB): the first scene's clean frame (no captions) with the
-    title box on top. Without the segment/card (e.g. re-uploading an old folder), uses the video's first frame."""
+def make_thumbnail(video: Path, out: Path, first_segment: Path | None = None, title: str = "",
+                   style: str = "classic") -> Path:
+    """JPEG for YouTube's custom thumbnail (max 2 MB): the first scene's clean frame (no captions) with a big
+    title box in the middle, so it survives YouTube cropping Shorts thumbnails to wider shapes.
+    Without the segment/title (e.g. re-uploading an old folder), uses the video's first frame."""
     from PIL import Image
 
-    if first_segment and first_segment.exists() and card and card.exists():
+    if first_segment and first_segment.exists() and title:
         frame = out.with_name("thumb_frame.png")
+        card = render_card(title, out.with_name("thumb_card.png"), style, center_y=HEIGHT // 2,
+                           font_size=110, max_width=1000)
         _run(["-ss", "0.1", "-i", str(first_segment), "-frames:v", "1", str(frame)])
         img = Image.alpha_composite(Image.open(frame).convert("RGBA").resize((WIDTH, HEIGHT)), Image.open(card))
+        card.unlink(missing_ok=True)
         img.convert("RGB").save(out, quality=88)
         frame.unlink(missing_ok=True)
     else:

@@ -240,8 +240,8 @@ def make(args: argparse.Namespace) -> None:
         publish_at = _publish_at(args)
         from . import youtube
         from .media import make_thumbnail
-        thumb = (make_thumbnail(video, workdir / "thumbnail.jpg", segments[0], workdir / "card_title.png")
-                 if not args.no_title else None)
+        thumb = (make_thumbnail(video, workdir / "thumbnail.jpg", segments[0], pkg.tiktok.on_screen_title,
+                                args.caption_style) if not args.no_title else None)
         url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=publish_at, thumbnail=thumb)
         if youtube.LAST_THUMBNAIL_ERROR:
             _warn(youtube.LAST_THUMBNAIL_ERROR)
