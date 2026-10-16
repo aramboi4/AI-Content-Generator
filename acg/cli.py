@@ -241,7 +241,7 @@ def make(args: argparse.Namespace) -> None:
         from . import youtube
         from .media import make_thumbnail
         thumb = (make_thumbnail(video, workdir / "thumbnail.jpg", segments[0], pkg.tiktok.on_screen_title,
-                                args.caption_style) if not args.no_title else None)
+                                args.caption_style) if config.CUSTOM_THUMBNAIL and not args.no_title else None)
         url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=publish_at, thumbnail=thumb)
         if youtube.LAST_THUMBNAIL_ERROR:
             _warn(youtube.LAST_THUMBNAIL_ERROR)
@@ -292,7 +292,7 @@ def upload_existing(args: argparse.Namespace) -> None:
     from . import youtube
     from .media import make_thumbnail
     url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=_publish_at(args),
-                 thumbnail=make_thumbnail(video, folder / "thumbnail.jpg"))
+                 thumbnail=make_thumbnail(video, folder / "thumbnail.jpg") if config.CUSTOM_THUMBNAIL else None)
     if youtube.LAST_THUMBNAIL_ERROR:
         print(f"Warning: {youtube.LAST_THUMBNAIL_ERROR}")
     write_guide(pkg, folder / "POSTING_GUIDE.md", url)

@@ -50,6 +50,9 @@ OUTRO_CHANCE = float(os.getenv("ACG_OUTRO_CHANCE", "0.5"))
 TREND_LANGUAGE = os.getenv("ACG_TREND_LANGUAGE", "en")  # audience for YouTube trend lookups
 TREND_REGION = os.getenv("ACG_TREND_REGION", "US")
 TIMEZONE = os.getenv("ACG_TZ", "Asia/Manila")  # for --publish-next
+# Custom YouTube thumbnail (title card) after upload. Off until the channel is monetized, since YouTube
+# only shows custom Shorts thumbnails on Partner Program channels for now. Set to 1 to turn it on.
+CUSTOM_THUMBNAIL = os.getenv("ACG_CUSTOM_THUMBNAIL", "0") == "1"
 YT_CATEGORY_ID = os.getenv("YT_CATEGORY_ID", "22")  # 22 = People & Blogs, 27 = Education
 
 WIDTH, HEIGHT, FPS = 1080, 1920, 30
