@@ -234,13 +234,14 @@ def make(args: argparse.Namespace) -> None:
         cards.append((render_card(pkg.tiktok.on_screen_title, workdir / "card_title.png", args.caption_style,
                                   top=330, font_size=86, max_width=990), 0.0, min(3.0, t), False))
     logo, icon = config.BRAND_DIR / "logo.png", config.BRAND_DIR / "logo_icon.png"
+    branded = args.style != "ad"  # product ads stay separate from the channel brand
     if outro_at is not None:
         card = render_card(outro_text, workdir / "card_outro.png", args.caption_style,
                            center_y=HEIGHT // 2 + 120, font_size=80, max_width=990)
-        if logo.exists():  # channel logo above the follow-for-more box
+        if logo.exists() and branded:  # channel logo above the follow-for-more box
             add_logo_above(card, logo)
         cards.append((card, outro_at, t, True))
-    if icon.exists() and not args.no_watermark:  # small channel watermark until the ending card
+    if icon.exists() and branded and not args.no_watermark:  # small channel watermark until the ending card
         cards.append((render_watermark(icon, workdir / "card_watermark.png"), 0.0,
                       outro_at if outro_at is not None else t, False))
     video = workdir / "video.mp4"
