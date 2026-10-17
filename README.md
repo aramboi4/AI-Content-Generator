@@ -101,6 +101,8 @@ After each video is made, a Telegram bot sends you the video (tap it, then **Sav
 3. Run `.\.venv\Scripts\python -m acg telegram-setup`, which prints your chat id. Put it in `.env` as `TELEGRAM_CHAT_ID`.
 4. Add both as GitHub secrets: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
 
+Videos over Telegram's 50 MB limit are sent as a compressed copy, followed by a link to the full-quality file from the GitHub run. Each video message says where it came from (a daily GitHub run, with a link, or a test on the laptop).
+
 The bot also alerts you when something breaks: **❌** when a video fails (which step, the likely cause and how to fix it, plus a link to the log), **⚠️** when a video was made but something was degraded (e.g. trend data or footage failed), and a setup-failure alert if the GitHub run breaks before the video code starts.
 
 ## AI images setup (one time, free)

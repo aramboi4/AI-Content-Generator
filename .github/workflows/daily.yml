@@ -152,6 +152,16 @@ jobs:
             echo "Available for 14 days. Unzip it, then post video.mp4 to TikTok and Instagram with the captions above."
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Send the full-quality download link if the video was too big for Telegram
+        if: always() && steps.artifact.outputs.artifact-url != '' && hashFiles('output/.telegram_oversize') != ''
+        env:
+          URL: ${{ steps.artifact.outputs.artifact-url }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then exit 0; fi
+          mb=$(cat output/.telegram_oversize)
+          curl -s -o /dev/null "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}"             --data-urlencode "text=⬇️ Full-quality video (${mb} MB, too big for Telegram): ${URL}
+          Sign in to GitHub, download the zip, and unzip it to get video.mp4. Available for 14 days."
+
       - name: Alert on Telegram if the run failed outside the video code
         if: failure()
         env:

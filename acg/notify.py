@@ -1,5 +1,7 @@
 """Send each finished video + its captions to your phone via a free Telegram bot."""
 import html
+import os
+import subprocess
 from pathlib import Path
 
 import requests
@@ -35,6 +37,19 @@ PH_POSTING_GUIDE = """🇵🇭 <b>Before posting this ad (to reach PH viewers)</
 • Paid "Promote"/"Boost" is the only way to pick a country - skip it until you're monetized."""
 
 
+def compress_for_telegram(video: Path, out: Path, target_mb: float = 45) -> Path | None:
+    """Re-encodes to fit under Telegram's 50 MB bot limit (bitrate sized to the duration)."""
+    from .media import FFMPEG, probe_duration
+
+    dur = max(probe_duration(video), 1)
+    v_kbps = int(target_mb * 8 * 1024 / dur) - 160  # leave room for 128k audio + container
+    proc = subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", str(video),
+                           "-c:v", "libx264", "-preset", "medium", "-b:v", f"{v_kbps}k", "-maxrate", f"{v_kbps}k",
+                           "-bufsize", f"{v_kbps * 2}k", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
+                           "-movflags", "+faststart", str(out)], capture_output=True, text=True)
+    return out if proc.returncode == 0 and out.exists() else None
+
+
 def enabled() -> bool:
     return bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 
@@ -56,14 +71,27 @@ def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, w
                note: str | None = None, posting_guide: str | None = None) -> None:
     title = html.escape(pkg.tiktok.on_screen_title)
     yt = f"\nYouTube: {youtube_url}" + (f" (goes public {when})" if when else "") if youtube_url else ""
-    header = f"🎬 <b>{title}</b>\n{html.escape(pkg.topic)}{html.escape(yt)}"
-    if video.stat().st_size <= MAX_VIDEO_BYTES:
-        with open(video, "rb") as f:
+    run = _run_link()
+    source = (f'\nMade by: <a href="{run}">daily GitHub run</a>' if run
+              else "\nMade by: a test on the laptop (not a scheduled run)")
+    header = f"🎬 <b>{title}</b>\n{html.escape(pkg.topic)}{html.escape(yt)}{source}"
+    send = video
+    if video.stat().st_size > MAX_VIDEO_BYTES:
+        # Too big for a Telegram bot: send a compressed copy now, and the full-quality download link
+        # (the GitHub run's artifact) follows from the workflow once it's uploaded.
+        mb = video.stat().st_size / 1024 / 1024
+        link = ("the full-quality download link follows in the next message" if os.getenv("GITHUB_RUN_ID")
+                else f"full-quality file: {video}")
+        header += f"\n⚠️ The video is {mb:.0f} MB (Telegram's limit is 50 MB) - this is a compressed copy; {link}."
+        send = compress_for_telegram(video, video.with_name("video_telegram.mp4"))
+        (video.parent.parent / ".telegram_oversize").write_text(f"{mb:.0f}", encoding="utf-8")
+    if send and send.stat().st_size <= MAX_VIDEO_BYTES:
+        with open(send, "rb") as f:
             _api("sendVideo", data={"chat_id": TELEGRAM_CHAT_ID, "caption": header, "parse_mode": "HTML",
                                     "supports_streaming": "true", "width": 1080, "height": 1920},
-                 files={"video": (video.name, f, "video/mp4")})
+                 files={"video": (send.name, f, "video/mp4")})
     else:
-        _send_text(header + "\n⚠️ Video is over 50 MB - download it from the GitHub Actions run instead.")
+        _send_text(header)
     # Each caption in its own message inside <code>, so one tap copies it.
     _send_text(f"📱 <b>TikTok caption</b> (tap to copy)\n<code>{html.escape(pkg.tiktok.full_caption())}</code>")
     _send_text(f"📸 <b>Instagram caption</b> (tap to copy)\n<code>{html.escape(pkg.instagram.full_caption())}</code>")
