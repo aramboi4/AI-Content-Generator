@@ -179,6 +179,9 @@ HOOKS = {
 
 FORMATS = {"facts": "fun facts", "story": "short inspiring story", "ad": "short product ad"}
 PRIVACY_CHANCE = 0.4  # share of ads that include the brief's privacy reassurance
+# Words per second relative to the Microsoft voice; set to ~1.3 by the CLI when the faster Inworld voice
+# (Clive/Dennis) will be used, so videos come out near the target length for the actual voice.
+VOICE_PACE = 1.0
 
 
 _CTA_SENTENCE = re.compile(r"[^.!?]*\b(follow|subscribe|like and share|hit the bell|in the comments)\b[^.!?]*[.!?]\s*$",
@@ -198,7 +201,7 @@ def write_package(niche: str, topic: str | None, research: str, target_seconds: 
     hook = random.choice(HOOKS[style])
     recent = "\n".join(f"  - {h}" for h in avoid_hooks)
     # Inworld's Clive/Dennis speak noticeably faster than the Microsoft voice, so ask for more words.
-    words = int(target_seconds * WORDS_PER_SECOND[style] * (1.3 if INWORLD_API_KEY else 1.0))
+    words = int(target_seconds * WORDS_PER_SECOND[style] * VOICE_PACE)
     product = f"""
 Product brief (the only source of truth for claims):
 <brief>
@@ -270,7 +273,7 @@ EXTEND_RULES = {
 def extend_package(pkg: VideoPackage, style: str, missing_seconds: float) -> tuple[int, list[Scene]]:
     """Writes extra scenes when the video came out too short. Returns (insert index, new scenes)."""
     n = max(1, min(3, round(missing_seconds / 6)))
-    words = int(missing_seconds * WORDS_PER_SECOND[style] * (1.3 if INWORLD_API_KEY else 1.0)) + 5
+    words = int(missing_seconds * WORDS_PER_SECOND[style] * VOICE_PACE) + 5
     script = "\n".join(f"{i + 1}. {s.narration}" for i, s in enumerate(pkg.scenes))
     prompt = f"""This short video script is about {missing_seconds:.0f} seconds too short.
 Topic: {pkg.topic}

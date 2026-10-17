@@ -17,8 +17,23 @@ from pathlib import Path
 import edge_tts
 import requests
 
-from .config import (INWORLD_API_KEY, INWORLD_MODEL, INWORLD_VOICES, KOKORO_DIR, KOKORO_MATCH, PIPER_DIR,
-                     PIPER_VOICE)
+from .config import (INWORLD_API_KEY, INWORLD_MODEL, INWORLD_VOICES, KOKORO_DIR, KOKORO_MATCH, KOKORO_SPEED, USE_MICROSOFT_VOICE,
+                     PIPER_DIR, PIPER_VOICE)
+
+
+def inworld_available() -> bool:
+    """Cheap check (a one-word request) whether Inworld still has credits, so the script length can be
+    sized for the voice that will actually be used."""
+    if not INWORLD_API_KEY:
+        return False
+    try:
+        r = requests.post("https://api.inworld.ai/tts/v1/voice", timeout=30,
+                          headers={"Authorization": f"Basic {INWORLD_API_KEY}"},
+                          json={"text": "Hi.", "voiceId": INWORLD_VOICES[0], "modelId": INWORLD_MODEL,
+                                "audioConfig": {"audioEncoding": "MP3"}})
+        return r.ok
+    except requests.RequestException:
+        return False
 
 KOKORO_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1"
 from .media import probe_duration
@@ -137,7 +152,8 @@ def _kokoro_all(narrations: list[str], kvoice: str, rate: str, workdir: Path,
                         f.write(chunk)
             (KOKORO_DIR / f"{name}.part").rename(KOKORO_DIR / name)
     k = Kokoro(str(KOKORO_DIR / "kokoro-v1.0.onnx"), str(KOKORO_DIR / "voices-v1.0.bin"))
-    speed = 1 + int(rate.rstrip("%")) / 100
+    # The user's chosen pace, nudged only lightly by the per-style rate so stories don't drag.
+    speed = KOKORO_SPEED * (1 + int(rate.rstrip("%")) / 200)
     lang = "en-gb" if kvoice.startswith("b") else "en-us"
     out = []
     for i, text in enumerate(narrations):
@@ -182,24 +198,26 @@ def synthesize_scenes(narrations: list[str], voice: str, workdir: Path, rate: st
             return result(zip(paths, all_words), f"inworld:{used}")
         except Exception as e:  # free minutes used up, outage, ...: fall back to the free Microsoft voice
             inworld_error = f"{type(e).__name__}: {str(e)[:150]}"
-            print(f"    Inworld failed ({inworld_error}) - using Microsoft's voice instead.")
-    error = None
-    for attempt in range(len(EDGE_RETRY_WAITS) + 1):
-        try:
-            return result(zip(paths, _edge_all(narrations, voice, rate, paths)), "edge-tts",
-                          inworld_error=inworld_error)
-        except Exception as e:
-            error = e
-            if attempt < len(EDGE_RETRY_WAITS):
-                wait = EDGE_RETRY_WAITS[attempt]
-                print(f"    edge-tts failed ({type(e).__name__}: {str(e)[:80]}) - retrying in {wait}s...")
-                time.sleep(wait)
-    edge_error = f"{type(error).__name__}: {str(error)[:150]}"
+            print(f"    Inworld failed ({inworld_error}) - using the backup voice instead.")
+    edge_error = None
+    if USE_MICROSOFT_VOICE:  # off by default: Kokoro runs locally and can't be blocked
+        error = None
+        for attempt in range(len(EDGE_RETRY_WAITS) + 1):
+            try:
+                return result(zip(paths, _edge_all(narrations, voice, rate, paths)), "edge-tts",
+                              inworld_error=inworld_error)
+            except Exception as e:
+                error = e
+                if attempt < len(EDGE_RETRY_WAITS):
+                    wait = EDGE_RETRY_WAITS[attempt]
+                    print(f"    edge-tts failed ({type(e).__name__}: {str(e)[:80]}) - retrying in {wait}s...")
+                    time.sleep(wait)
+        edge_error = f"{type(error).__name__}: {str(error)[:150]}"
     for p in paths:
         p.unlink(missing_ok=True)
     kvoice = KOKORO_MATCH.get(preferred[0], "am_michael")
     try:
-        print(f"    edge-tts unavailable - using Kokoro voice {kvoice} (closest to {preferred[0]}).")
+        print(f"    using Kokoro voice {kvoice} (in place of {preferred[0]}).")
         return result(_kokoro_all(narrations, kvoice, rate, workdir, prefix), f"kokoro:{kvoice}",
                       inworld_error=inworld_error, edge_error=edge_error)
     except Exception as e:

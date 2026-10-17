@@ -30,8 +30,11 @@ VOICE = os.getenv("ACG_VOICE", "en-US-AndrewNeural")
 INWORLD_API_KEY = os.getenv("INWORLD_API_KEY", "")
 INWORLD_VOICES = [v.strip() for v in os.getenv("ACG_INWORLD_VOICES", "Clive,Dennis").split(",") if v.strip()]
 INWORLD_MODEL = os.getenv("ACG_INWORLD_MODEL", "inworld-tts-1.5-max")
-# Kokoro voices closest to each Inworld voice (matched on pitch and tone against real samples).
-KOKORO_MATCH = {"Clive": os.getenv("ACG_KOKORO_CLIVE", "am_michael"), "Dennis": os.getenv("ACG_KOKORO_DENNIS", "am_fenrir")}
+# Kokoro voice used in place of each Inworld voice (user picked am_adam, "Voice C", from samples).
+KOKORO_MATCH = {"Clive": os.getenv("ACG_KOKORO_CLIVE", "am_adam"), "Dennis": os.getenv("ACG_KOKORO_DENNIS", "am_adam")}
+KOKORO_SPEED = float(os.getenv("ACG_KOKORO_SPEED", "1.12"))  # base pace the user picked from samples
+# Microsoft edge-tts kept as an option but off: it started blocking requests (403) in Oct 2026.
+USE_MICROSOFT_VOICE = os.getenv("ACG_USE_MICROSOFT_VOICE", "0") == "1"
 KOKORO_DIR = ROOT / "assets" / "kokoro"  # model downloaded here on first use (~340 MB, not in git)
 PIPER_VOICE = os.getenv("ACG_PIPER_VOICE", "en_US-ryan-medium")  # fallback voice if edge-tts is blocked
 PIPER_DIR = ROOT / "assets" / "piper"  # model downloaded here on first use (~60 MB, not in git)

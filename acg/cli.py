@@ -87,6 +87,10 @@ def make(args: argparse.Namespace) -> None:
             parts.append("## Web search findings\n" + web)
         research = "\n\n".join(parts)
 
+    from . import voice as voice_mod, writer as writer_mod
+    fast_voice = voice_mod.inworld_available()  # Clive/Dennis speak ~30% faster than the fallbacks
+    writer_mod.VOICE_PACE = 1.3 if fast_voice else 1.0
+    print(f"    Inworld credits available: {'yes' if fast_voice else 'no'}")
     STATE["stage"] = "script"
     print("2/6 Writing script, titles, captions and hashtags...")
     brief = ""
@@ -138,17 +142,15 @@ def make(args: argparse.Namespace) -> None:
         print(f"    ending: {outro_text!r}")
     narrations = [s.narration for s in pkg.scenes] + ([outro_spoken] if outro_spoken else [])
     voices = synthesize_scenes(narrations, args.voice, workdir, rate)
-    if voices and voices[0].get("inworld_error"):
-        _warn("The Inworld voice (Clive/Dennis) couldn't be used - the free minutes may be used up - so this "
-              f"video uses a backup voice. Details: {voices[0]['inworld_error']}")
     engine = voices[0]["engine"] if voices else ""
     print(f"    voice: {engine}")
-    if engine.startswith("kokoro"):
-        _warn(f"Microsoft's voice service (edge-tts) refused the connection, so this video uses the Kokoro "
-              f"voice {engine.split(':')[1]}. Details: {voices[0]['edge_error']}")
+    inworld_error = voices[0].get("inworld_error") if voices else None
+    # Inworld having no credits is the normal state on the free plan, so only other Inworld errors are flagged.
+    if inworld_error and "402" not in inworld_error:
+        _warn(f"The Inworld voice (Clive/Dennis) failed, so this video uses Kokoro instead. Details: {inworld_error}")
     if engine == "piper":
-        _warn("Microsoft's voice and Kokoro both failed, so this video uses the backup Piper voice. "
-              f"Details: {voices[0].get('kokoro_error') or voices[0]['edge_error']}")
+        _warn("Kokoro failed, so this video uses the backup Piper voice (more robotic). "
+              f"Details: {voices[0].get('kokoro_error') or voices[0].get('edge_error')}")
     outro = voices[len(pkg.scenes):]
     voices = voices[:len(pkg.scenes)]
 
