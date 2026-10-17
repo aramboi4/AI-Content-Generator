@@ -8,3 +8,4 @@ output/
 assets/music/*
 !assets/music/.gitkeep
 assets/piper/
+assets/kokoro/

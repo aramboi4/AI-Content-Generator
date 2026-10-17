@@ -141,9 +141,14 @@ def make(args: argparse.Namespace) -> None:
     if voices and voices[0].get("inworld_error"):
         _warn("The Inworld voice (Clive/Dennis) couldn't be used - the free minutes may be used up - so this "
               f"video uses a backup voice. Details: {voices[0]['inworld_error']}")
-    if voices and voices[0]["engine"] == "piper":
-        _warn("Microsoft's voice service (edge-tts) refused the connection, so this video uses the backup "
-              f"Piper voice. Details: {voices[0]['edge_error']}")
+    engine = voices[0]["engine"] if voices else ""
+    print(f"    voice: {engine}")
+    if engine.startswith("kokoro"):
+        _warn(f"Microsoft's voice service (edge-tts) refused the connection, so this video uses the Kokoro "
+              f"voice {engine.split(':')[1]}. Details: {voices[0]['edge_error']}")
+    if engine == "piper":
+        _warn("Microsoft's voice and Kokoro both failed, so this video uses the backup Piper voice. "
+              f"Details: {voices[0].get('kokoro_error') or voices[0]['edge_error']}")
     outro = voices[len(pkg.scenes):]
     voices = voices[:len(pkg.scenes)]
 
@@ -159,7 +164,7 @@ def make(args: argparse.Namespace) -> None:
         if not extra:
             continue
         extra_voices = synthesize_scenes([s.narration for s in extra], args.voice, workdir, rate,
-                                         prefix=f"extra{round_}")
+                                         prefix=f"extra{round_}", engine=voices[0]["engine"])
         pkg.scenes[at:at] = extra
         voices[at:at] = extra_voices
     else:

@@ -95,12 +95,14 @@ jobs:
         if: steps.plan.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      - name: Cache backup voice model (Piper)
+      - name: Cache backup voice models (Kokoro, Piper)
         if: steps.plan.outputs.skip != 'true'
         uses: actions/cache@v4
         with:
-          path: assets/piper
-          key: piper-en_US-ryan-medium
+          path: |
+            assets/kokoro
+            assets/piper
+          key: voices-kokoro-v1.0-piper-ryan
 
       - name: Make video
         if: steps.plan.outputs.skip != 'true'

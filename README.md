@@ -4,7 +4,7 @@ Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels)
 
 1. **Trend research** – pulls the most-viewed recent Shorts in your niche from YouTube (their hashtags and tags), plus optional Gemini web search (`ACG_WEB_SEARCH=1`, which isn't included in Gemini's free tier)
 2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags
-3. **Voiceover** – free Microsoft neural voices via `edge-tts`, with word timings
+3. **Voiceover** – Inworld's Clive or Dennis (picked at random) while free credits last, then Microsoft's free voice (`edge-tts`), then Kokoro (free, runs locally; `am_michael` ≈ Clive, `am_fenrir` ≈ Dennis), then Piper as a last resort
 4. **Visuals** – AI 3D cartoon images (Cloudflare Workers AI, free daily allowance) with the same character in every scene, or free stock clips from Pixabay/Pexels
 5. **Render** – 1080×1920 video with slow zoom in/out, one-word pop-in captions (Anton font), a purple title card, optional background music
 6. **Publish** – auto-upload to YouTube; a `POSTING_GUIDE.md` with copy-paste captions for TikTok and Instagram
