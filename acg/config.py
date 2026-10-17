@@ -52,7 +52,7 @@ OUTROS = [p.strip() for p in os.getenv("ACG_OUTROS", DEFAULT_OUTROS).split("|") 
 COMMENT_CTAS = ["Let me know in the comments!", "Tell me in the comments!", "Drop your answer in the comments!",
                 "Let me know what you think below!", "Share your answer in the comments!",
                 "I'd love to hear yours in the comments!"]
-COMMENT_CTA_CHANCE = float(os.getenv("ACG_COMMENT_CTA_CHANCE", "0.5"))  # when the video ends on a question
+COMMENT_CTA_CHANCE = float(os.getenv("ACG_COMMENT_CTA_CHANCE", "1.0"))  # when the video ends on a question
 OUTRO_CHANCE = float(os.getenv("ACG_OUTRO_CHANCE", "1.0"))
 TREND_LANGUAGE = os.getenv("ACG_TREND_LANGUAGE", "en")  # audience for YouTube trend lookups
 TREND_REGION = os.getenv("ACG_TREND_REGION", "US")

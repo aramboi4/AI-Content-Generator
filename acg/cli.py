@@ -61,7 +61,7 @@ def make(args: argparse.Namespace) -> None:
     from . import history
     from .guide import write_guide
     from .config import HEIGHT
-    from .media import (add_logo_above, concat_audio, final_render, render_card, render_segment,
+    from .media import (card_top, concat_audio, final_render, logo_badge, render_card, render_segment,
                         render_watermark, write_captions)
     from .trends import youtube_trends
     from .voice import synthesize_scenes
@@ -94,9 +94,16 @@ def make(args: argparse.Namespace) -> None:
         if not args.brief or not args.website:
             sys.exit("--style ad needs --brief (product brief file) and --website.")
         brief = open(args.brief, encoding="utf-8").read()
+    # Ending, picked at random: a question + comments prompt, or a lesson/payoff + follow-for-more outro.
+    ending = args.ending if args.ending != "random" else random.choice(["question", "statement"])
+    if args.style != "ad":
+        print(f"    ending style: {ending}")
     pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
                         avoid=history.recent_topics(args.style), avoid_hooks=history.recent_hooks(),
-                        brief=brief, website=args.website or "")
+                        brief=brief, website=args.website or "", ending=ending)
+    if args.style != "ad":  # the matching call to action is added below; drop any the model wrote itself
+        from .writer import strip_cta
+        pkg.scenes[-1].narration = strip_cta(pkg.scenes[-1].narration)
     if args.style == "ad" and args.website.lower() not in pkg.youtube.description.lower():
         pkg.youtube.description = f"Try it free: https://{args.website}\n\n{pkg.youtube.description}"
 
@@ -238,17 +245,21 @@ def make(args: argparse.Namespace) -> None:
                                   top=330, font_size=86, max_width=990), 0.0, min(3.0, t), False))
     logo, icon = config.BRAND_DIR / "logo.png", config.BRAND_DIR / "logo_icon.png"
     branded = args.style != "ad"  # product ads stay separate from the channel brand
+    pop = None
     if outro_at is not None:
         card = render_card(outro_text, workdir / "card_outro.png", args.caption_style,
                            center_y=HEIGHT // 2 + 120, font_size=80, max_width=990)
-        if logo.exists() and branded:  # channel logo above the follow-for-more box
-            add_logo_above(card, logo)
+        if logo.exists() and branded:  # channel logo pops in (CapCut-style) above the follow-for-more box
+            badge = logo_badge(logo, workdir / "card_logo.png")
+            from PIL import Image
+            badge_h = Image.open(badge).height
+            pop = (badge, outro_at, t, card_top(card) - 40 - badge_h // 2)
         cards.append((card, outro_at, t, True))
     if icon.exists() and branded and not args.no_watermark:  # small channel watermark until the ending card
         cards.append((render_watermark(icon, workdir / "card_watermark.png"), 0.0,
                       outro_at if outro_at is not None else t, False))
     video = workdir / "video.mp4"
-    final_render(segments, narration, captions, video, cards=cards)
+    final_render(segments, narration, captions, video, cards=cards, pop=pop)
 
     url, publish_at = None, None
     STATE["stage"] = "upload"
@@ -344,6 +355,8 @@ def main() -> None:
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     m.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time (ACG_TZ, default Asia/Manila)")
     m.add_argument("--no-title", action="store_true", help="Don't show the title card at the start")
+    m.add_argument("--ending", default="random", choices=["random", "question", "statement"],
+                   help="question = ends asking viewers + comments prompt; statement = lesson/payoff + follow outro")
     m.add_argument("--no-watermark", action="store_true", help="Don't show the channel logo watermark")
     m.add_argument("--outro", action="store_true", help='Always add the "follow for more" ending (default: 50%% chance)')
     m.add_argument("--no-outro", action="store_true", help='Never add the "follow for more" ending')

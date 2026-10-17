@@ -127,6 +127,26 @@ def render_watermark(icon: Path, out: Path, size: int = 150, opacity: float = 0.
     return out
 
 
+def logo_badge(logo: Path, out: Path, width: int = 420, pad: int = 30) -> Path:
+    """The channel logo on a soft dark rounded backdrop, as a small standalone PNG (for the animated outro)."""
+    from PIL import Image, ImageDraw
+
+    lg = Image.open(logo).convert("RGBA")
+    lg = lg.resize((width, int(lg.height * width / lg.width)), Image.LANCZOS)
+    img = Image.new("RGBA", (lg.width + 2 * pad, lg.height + 2 * pad), (0, 0, 0, 0))
+    ImageDraw.Draw(img).rounded_rectangle([0, 0, img.width - 1, img.height - 1], radius=36, fill=(0, 0, 0, 150))
+    img.alpha_composite(lg, (pad, pad))
+    img.save(out)
+    return out
+
+
+def card_top(card: Path) -> int:
+    """Top edge (y) of the box drawn in a full-frame card PNG."""
+    from PIL import Image
+
+    return Image.open(card).getchannel("A").getbbox()[1]
+
+
 def add_logo_above(card: Path, logo: Path, width: int = 420, gap: int = 40) -> Path:
     """Places the full channel logo centered just above the box in a rendered card PNG."""
     from PIL import Image
@@ -207,8 +227,11 @@ def render_card(text: str, out: Path, style: str = "classic", center_y: int | No
 
 
 def final_render(segments: list[Path], narration: Path, captions: Path, out: Path, music_volume: float = 0.10,
-                 cards: list[tuple[Path, float, float, bool]] = ()) -> None:
-    """cards: (png, start, end, fade_in) overlays such as the title and the follow-for-more box."""
+                 cards: list[tuple[Path, float, float, bool]] = (),
+                 pop: tuple[Path, float, float, int] | None = None) -> None:
+    """cards: (png, start, end, fade_in) overlays such as the title and the follow-for-more box.
+    pop: (png, start, end, center_y) - an image that pops in CapCut-style (zooms up from tiny with a
+    slight overshoot, then settles), centered horizontally at center_y. Used for the channel logo."""
     workdir = out.parent
     listfile = workdir / "segments.txt"
     listfile.write_text("".join(f"file '{p.name}'\n" for p in segments), encoding="utf-8")
@@ -230,7 +253,19 @@ def final_render(segments: list[Path], narration: Path, captions: Path, out: Pat
                 f"fade=t=out:st={max(start, end - 0.3):.3f}:d=0.3:alpha=1"
         filters.append(f"[{first + i}:v]format=rgba,{fades}[c{i}]")
         filters.append(f"[v{i}][c{i}]overlay=0:0:enable='between(t,{start:.3f},{end:.3f})'[v{i + 1}]")
-    filters.append(f"[v{len(cards)}]null[v]")
+    last = f"v{len(cards)}"
+    if pop:
+        png, start, end, cy = pop
+        k = first + len(cards)
+        args += ["-loop", "1", "-framerate", str(FPS), "-t", f"{end:.3f}", "-i", png.name]
+        # p: 0->1 over 0.5s from `start`; ease-out-back gives the pop with a ~10% overshoot.
+        p = f"clip((t-{start:.3f})/0.5,0,1)"
+        s = f"(1+2.70158*pow({p}-1,3)+1.70158*pow({p}-1,2))"
+        filters.append(f"[{k}:v]format=rgba,scale=w='max(2,iw*{s})':h=-1:eval=frame[pop]")
+        filters.append(f"[{last}][pop]overlay=x='(W-w)/2':y='{cy}-h/2':eval=frame:"
+                       f"enable='between(t,{start:.3f},{end:.3f})'[vpop]")
+        last = "vpop"
+    filters.append(f"[{last}]null[v]")
     args += ["-filter_complex", ";".join(filters + [af]), "-map", "[v]", "-map", "[a]",
              "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
              "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out.name]

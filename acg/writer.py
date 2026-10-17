@@ -107,7 +107,7 @@ STYLE_RULES = {
 - Scene 1 is the hook and must stop the scroll within 2 seconds (hook type for this video is given below).
 - One fact per scene, building to the most surprising one last.
 - Facts must be accurate and widely verifiable; skip anything you are unsure of.
-- End with a short payoff or a question that invites comments.""",
+- {ending}""",
     "story": """- 6-9 scenes, about {words} words of narration total, told as one short story.
 - Scene 1 is the hook and must pull the viewer in within 2 seconds (hook type for this video is given below).
 - Structure: setup -> struggle -> turning point -> lesson. Keep the lesson to one sentence at the end.
@@ -116,8 +116,7 @@ STYLE_RULES = {
   If it's a parable or fictional, the narration must make that clear within the first two scenes, in natural,
   varied wording (e.g. "Legend says...", "As the parable goes...", "In a village somewhere, the tale says..."),
   and topic must start with "Parable:". Never present an invented story as true.
-- The final scene is the lesson itself, stated as a strong, memorable line. Do NOT end with a question
-  (a follow-for-more call to action is added after it automatically).""",
+- {ending}""",
     "ad": """- 5-7 scenes, about {words} words of narration total: a short ad for the product in the brief below.
 - Structure: hook (a relatable money problem) -> the frustration -> the product as the simple fix,
   showing 1-2 specific features from the brief -> a payoff line. The spoken call to action (website) is added
@@ -127,6 +126,21 @@ STYLE_RULES = {
 - Only claim what the brief lists as available. Never invent statistics, reviews, user counts, or prices.
   Mention it's free to start. Never mention features the brief lists as not available yet.
 - Talk to the viewer ("you"), conversational, like a friend recommending it - not a TV announcer.""",
+}
+# How the script must end; the matching call to action is added afterwards in code.
+ENDING_RULES = {
+    "facts": {
+        "question": "The final scene is a short, specific question to the viewer about the facts (it must end with "
+                    "'?'). Don't mention comments - that's added automatically.",
+        "statement": "The final scene is a short, punchy payoff line (a statement, NOT a question). A follow-for-more "
+                     "call to action is added after it automatically.",
+    },
+    "story": {
+        "question": "End with the lesson in one sentence, then a final short question that asks viewers how it "
+                    "applies to their life (it must end with '?'). Don't mention comments - that's added automatically.",
+        "statement": "The final scene is the lesson itself, stated as a strong, memorable line - NOT a question. "
+                     "A follow-for-more call to action is added after it automatically.",
+    },
 }
 WORDS_PER_SECOND = {"facts": 2.6, "story": 2.3, "ad": 2.5}
 
@@ -167,9 +181,20 @@ FORMATS = {"facts": "fun facts", "story": "short inspiring story", "ad": "short 
 PRIVACY_CHANCE = 0.4  # share of ads that include the brief's privacy reassurance
 
 
+_CTA_SENTENCE = re.compile(r"[^.!?]*\b(follow|subscribe|like and share|hit the bell|in the comments)\b[^.!?]*[.!?]\s*$",
+                           re.IGNORECASE)
+
+
+def strip_cta(text: str) -> str:
+    """Removes a trailing follow/subscribe/comments sentence the model added on its own."""
+    stripped = _CTA_SENTENCE.sub("", text).strip()
+    return stripped or text
+
+
 def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts",
                   avoid: list[str] = (), avoid_hooks: list[str] = (), brief: str = "",
-                  website: str = "") -> VideoPackage:
+                  website: str = "", ending: str = "statement") -> VideoPackage:
+    """ending: "question" (last line asks viewers something) or "statement" (last line is the lesson/payoff)."""
     hook = random.choice(HOOKS[style])
     recent = "\n".join(f"  - {h}" for h in avoid_hooks)
     # Inworld's Clive/Dennis speak noticeably faster than the Microsoft voice, so ask for more words.
@@ -199,11 +224,12 @@ Trend research (collected today):
 </research>
 
 Script rules:
-{STYLE_RULES[style].format(words=words)}
+{STYLE_RULES[style].format(words=words, ending=ENDING_RULES.get(style, {}).get(ending, ''))}
 - Hook type for this video: {hook}.
 - Never open with "Did you know", "There's an old story", "Have you ever", "Imagine", or "Think again".
 {"- Recent openings - don't reuse their wording or sentence pattern:" + chr(10) + recent if recent else ""}
 - Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
+- Never add calls to action yourself (follow, subscribe, like, share, comment) - they are added automatically.
 - image_prompt: a vivid, concrete, single moment that illustrates the narration (3D cartoon look is added
   automatically - don't mention style). Vary framing across scenes: close-up, medium, wide.
 - visual_queries: simple, literal words a stock site (Pixabay/Pexels) would tag - objects, animals, places,
