@@ -116,7 +116,8 @@ STYLE_RULES = {
   If it's a parable or fictional, the narration must make that clear within the first two scenes, in natural,
   varied wording (e.g. "Legend says...", "As the parable goes...", "In a village somewhere, the tale says..."),
   and topic must start with "Parable:". Never present an invented story as true.
-- End with the lesson, then a short question that invites comments.""",
+- The final scene is the lesson itself, stated as a strong, memorable line. Do NOT end with a question
+  (a follow-for-more call to action is added after it automatically).""",
     "ad": """- 5-7 scenes, about {words} words of narration total: a short ad for the product in the brief below.
 - Structure: hook (a relatable money problem) -> the frustration -> the product as the simple fix,
   showing 1-2 specific features from the brief -> a payoff line. The spoken call to action (website) is added

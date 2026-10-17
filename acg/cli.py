@@ -110,22 +110,25 @@ def make(args: argparse.Namespace) -> None:
     STATE["stage"] = "voice"
     print("3/6 Generating voiceover...")
     rate = {"facts": "+8%", "ad": "+4%"}.get(args.style, "-4%")  # stories read slower
+    # How a video ends:
+    # - ends on a question -> that's the ending (sometimes + "let me know in the comments"), no follow outro
+    # - ends on a statement (e.g. a story's lesson) -> add the follow-for-more outro
+    last = pkg.scenes[-1]
+    ends_with_question = last.narration.rstrip().endswith("?") or "comment" in last.narration.lower()
     outro_text = outro_spoken = None
     if args.style == "ad":  # ads always end with the website call to action
         outro_text = args.cta_text or f"Try it free at {args.website.upper()}"
         outro_spoken = args.cta_voice or outro_text
+    elif ends_with_question:
+        if "comment" not in last.narration.lower() and random.random() < config.COMMENT_CTA_CHANCE:
+            last.narration = f"{last.narration.rstrip()} {random.choice(config.COMMENT_CTAS)}"
+            print(f"    comment prompt: {last.narration!r}")
     elif config.OUTROS and not args.no_outro and (args.outro or random.random() < config.OUTRO_CHANCE):
         # Avoid the endings used in the last few videos so it doesn't feel repetitive.
         recent = set(history.recent_outros(min(6, len(config.OUTROS) - 1)))
         outro_text = outro_spoken = random.choice([o for o in config.OUTROS if o not in recent] or config.OUTROS)
     if outro_text:
         print(f"    ending: {outro_text!r}")
-    # When the video ends on a question, about half the time invite viewers to answer in the comments.
-    last = pkg.scenes[-1]
-    if args.style != "ad" and last.narration.rstrip().endswith("?") and random.random() < config.COMMENT_CTA_CHANCE \
-            and "comment" not in last.narration.lower():
-        last.narration = f"{last.narration.rstrip()} {random.choice(config.COMMENT_CTAS)}"
-        print(f"    comment prompt: {last.narration!r}")
     narrations = [s.narration for s in pkg.scenes] + ([outro_spoken] if outro_spoken else [])
     voices = synthesize_scenes(narrations, args.voice, workdir, rate)
     if voices and voices[0].get("inworld_error"):

@@ -56,7 +56,7 @@ Options: `--style facts|story`, `--seconds 45`, `--voice en-US-AndrewNeural` (li
 
 - **Watermark:** the cup icon (`assets/brand/logo_icon.png`) sits small in the top-right corner until the ending. `--no-watermark` turns it off.
 - **Ending card:** when a video has a follow-for-more ending, the full logo (`assets/brand/logo.png`) appears above it.
-- **Comments prompt:** when the last line is a question, about half of the videos add one of several prompts such as "Let me know in the comments!" (`ACG_COMMENT_CTA_CHANCE`, default `0.5`).
+- **Comments prompt:** when the last line is a question, about half of the videos add one of several prompts such as "Let me know in the comments!" (`ACG_COMMENT_CTA_CHANCE`, default `0.5`). Those videos never get the follow-for-more ending.
 
 To change the logo, replace `assets/brand/logo_original.png` and ask Claude to regenerate the transparent versions.
 
@@ -81,7 +81,7 @@ Before creating `token.json`, set the OAuth app to **In production** (Google Clo
 
 To test without waiting: Actions → **Daily videos** → **Run workflow** (choose style, upload on/off).
 
-About half of the videos (picked at random) end with a ~5s call to action, spoken and shown on screen, picked from 12 variations ("Follow for more videos like this!", "Hit follow so you don't miss the next one!", "Enjoyed this? Follow for more!", ...). An ending isn't reused until at least 6 other endings have been used. Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
+Videos that end on a statement (e.g. a story's lesson) get a ~5s follow-for-more ending, spoken and shown on screen, picked from 12 variations. Videos that end on a question stop there instead (sometimes adding a comments prompt), with no follow ending. The phrases come from 12 variations ("Follow for more videos like this!", "Hit follow so you don't miss the next one!", "Enjoyed this? Follow for more!", ...). An ending isn't reused until at least 6 other endings have been used. Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
 
 ## Weekly product ad (LogExpense)
 

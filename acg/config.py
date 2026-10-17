@@ -32,7 +32,8 @@ INWORLD_VOICES = [v.strip() for v in os.getenv("ACG_INWORLD_VOICES", "Clive,Denn
 INWORLD_MODEL = os.getenv("ACG_INWORLD_MODEL", "inworld-tts-1.5-max")
 PIPER_VOICE = os.getenv("ACG_PIPER_VOICE", "en_US-ryan-medium")  # fallback voice if edge-tts is blocked
 PIPER_DIR = ROOT / "assets" / "piper"  # model downloaded here on first use (~60 MB, not in git)
-# Ending call to action: added to OUTRO_CHANCE of videos, one phrase picked at random ("|"-separated).
+# Follow-for-more ending: added to videos that DON'T end on a question (questions get a comments prompt
+# instead), with probability OUTRO_CHANCE. One phrase picked at random ("|"-separated).
 DEFAULT_OUTROS = "|".join([
     "Follow for more videos like this!",
     "Want to watch more videos? Follow for more!",
@@ -52,7 +53,7 @@ COMMENT_CTAS = ["Let me know in the comments!", "Tell me in the comments!", "Dro
                 "Let me know what you think below!", "Share your answer in the comments!",
                 "I'd love to hear yours in the comments!"]
 COMMENT_CTA_CHANCE = float(os.getenv("ACG_COMMENT_CTA_CHANCE", "0.5"))  # when the video ends on a question
-OUTRO_CHANCE =float(os.getenv("ACG_OUTRO_CHANCE", "0.5"))
+OUTRO_CHANCE = float(os.getenv("ACG_OUTRO_CHANCE", "1.0"))
 TREND_LANGUAGE = os.getenv("ACG_TREND_LANGUAGE", "en")  # audience for YouTube trend lookups
 TREND_REGION = os.getenv("ACG_TREND_REGION", "US")
 TIMEZONE = os.getenv("ACG_TZ", "Asia/Manila")  # for --publish-next
