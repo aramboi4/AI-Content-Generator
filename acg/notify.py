@@ -113,7 +113,8 @@ def find_chat_id() -> str | None:
 STAGES = {
     "research": "YouTube trend lookup",
     "script": "writing the script (Gemini)",
-    "voice": "voiceover (edge-tts)",
+    "voice": "voiceover (Inworld / Kokoro)",
+    "lengthen": "adding scenes to reach 30 seconds (Gemini)",
     "footage": "stock footage (Pixabay)",
     "render": "video rendering (FFmpeg)",
     "upload": "YouTube upload",
@@ -131,7 +132,9 @@ def diagnose(stage: str, exc: BaseException) -> tuple[str, str]:
         return ("YouTube daily API quota used up", "It resets at midnight Pacific time - the next run should work.")
     if "uploadlimitexceeded" in text:
         return ("YouTube upload limit reached for the channel", "Wait 24 hours; YouTube limits uploads per day.")
-    if stage == "script" or "genai" in text or "gemini" in text:
+    if stage in ("script", "lengthen") or "genai" in text or "gemini" in text:
+        if "disconnected" in text or "remoteprotocolerror" in text or "connecterror" in text or "timeout" in text:
+            return ("Connection to Gemini dropped", "Temporary network problem - the next scheduled run should work.")
         if "429" in text or "resource_exhausted" in text:
             return ("Gemini free-tier limit reached", "Usually resets within a day. If it keeps happening, check "
                     "limits at https://aistudio.google.com")
@@ -142,8 +145,8 @@ def diagnose(stage: str, exc: BaseException) -> tuple[str, str]:
                     "GEMINI_API_KEY in .env and GitHub secrets.")
         return ("Gemini (script writer) error", "Often temporary (servers busy). If it repeats, check the log.")
     if stage == "voice":
-        return ("Voice service (edge-tts) not responding", "Usually temporary or blocked by Microsoft; a library "
-                "update normally fixes it within days. If it repeats for 2+ days, ask Claude to switch voices.")
+        return ("Voice generation failed (Inworld / Kokoro / Piper)",
+                "Kokoro runs on GitHub's machine, so this is unusual - send the log to Claude.")
     if stage == "footage":
         return ("Pixabay footage error", "Check the key at https://pixabay.com/api/docs/ (PIXABAY_API_KEY).")
     if stage == "render":

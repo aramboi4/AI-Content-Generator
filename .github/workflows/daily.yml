@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   make:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: ubuntu-latest moves to Ubuntu 26 from Oct 19, 2026
     timeout-minutes: 45
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -49,7 +49,7 @@ jobs:
       IMAGEIO_FFMPEG_EXE: /usr/bin/ffmpeg
       PYTHONIOENCODING: utf-8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Pick video type
         id: plan
@@ -85,7 +85,7 @@ jobs:
         if: steps.plan.outputs.skip != 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fontconfig
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.plan.outputs.skip != 'true'
         with:
           python-version: "3.12"
@@ -97,7 +97,7 @@ jobs:
 
       - name: Cache backup voice models (Kokoro, Piper)
         if: steps.plan.outputs.skip != 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             assets/kokoro
@@ -133,7 +133,7 @@ jobs:
       - name: Keep video + posting guide for TikTok/Instagram
         id: artifact
         if: always() && steps.plan.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.plan.outputs.style }}-${{ github.run_number }}
           path: |

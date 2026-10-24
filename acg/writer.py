@@ -4,6 +4,7 @@ import re
 import time
 from datetime import date
 
+import httpx
 from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, Field
@@ -18,17 +19,21 @@ MODELS = list(dict.fromkeys([MODEL, "gemini-3.5-flash", "gemini-flash-latest", "
 
 
 def _generate(contents: str, config: types.GenerateContentConfig | None = None):
+    """Calls Gemini, retrying across free models on busy/rate-limit errors and dropped connections."""
     last = None
-    for attempt in range(2):
+    for attempt in range(3):
         for model in MODELS:
             try:
                 return client.models.generate_content(model=model, contents=contents, config=config)
             except errors.APIError as e:
-                if e.code not in (429, 500, 503, 504):
+                if e.code not in (429, 500, 502, 503, 504):
                     raise
                 last = e
                 print(f"    {model} unavailable ({e.code}), trying next model...")
-        time.sleep(20)
+            except (httpx.TransportError, ConnectionError) as e:  # e.g. "Server disconnected without a response"
+                last = e
+                print(f"    {model} connection dropped ({type(e).__name__}), trying again...")
+        time.sleep(20 * (attempt + 1))
     raise last
 
 

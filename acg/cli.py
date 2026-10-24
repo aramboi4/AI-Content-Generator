@@ -162,11 +162,17 @@ def make(args: argparse.Namespace) -> None:
             break
         print(f"    content is {content:.0f}s (< {args.min_seconds}s) - adding more "
               f"{'facts' if args.style == 'facts' else 'scenes'}...")
-        at, extra = extend_package(pkg, args.style, args.min_seconds - content + 2)
-        if not extra:
-            continue
-        extra_voices = synthesize_scenes([s.narration for s in extra], args.voice, workdir, rate,
-                                         prefix=f"extra{round_}", engine=voices[0]["engine"])
+        STATE["stage"] = "lengthen"
+        try:
+            at, extra = extend_package(pkg, args.style, args.min_seconds - content + 2)
+            if not extra:
+                continue
+            extra_voices = synthesize_scenes([s.narration for s in extra], args.voice, workdir, rate,
+                                             prefix=f"extra{round_}", engine=voices[0]["engine"])
+        except Exception as e:  # a shorter video is better than no video
+            _warn(f"Couldn't add extra scenes ({type(e).__name__}: {str(e)[:120]}) - the video is a bit shorter "
+                  f"than {args.min_seconds}s.")
+            break
         pkg.scenes[at:at] = extra
         voices[at:at] = extra_voices
     else:
