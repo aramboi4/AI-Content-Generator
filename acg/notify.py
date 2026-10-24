@@ -70,11 +70,14 @@ def _send_text(text: str) -> None:
 def send_video(video: Path, pkg: VideoPackage, youtube_url: str | None = None, when: str | None = None,
                note: str | None = None, posting_guide: str | None = None) -> None:
     title = html.escape(pkg.tiktok.on_screen_title)
-    yt = f"\nYouTube: {youtube_url}" + (f" (goes public {when})" if when else "") if youtube_url else ""
+    yt = f"\nYouTube: {youtube_url}" + (f" (goes public {when})" if when else " (public now)") if youtube_url else ""
     run = _run_link()
     source = (f'\nMade by: <a href="{run}">daily GitHub run</a>' if run
               else "\nMade by: a test on the laptop (not a scheduled run)")
-    header = f"🎬 <b>{title}</b>\n{html.escape(pkg.topic)}{html.escape(yt)}{source}"
+    post = (f"\n📅 <b>Post on TikTok/Instagram: {html.escape(when)}</b>" if when
+            else "\n📅 <b>Post on TikTok/Instagram: now</b>" if youtube_url
+            else "\n📅 Not scheduled (test video) - don't post unless you want to")
+    header = f"🎬 <b>{title}</b>{post}\n{html.escape(pkg.topic)}{html.escape(yt)}{source}"
     send = video
     if video.stat().st_size > MAX_VIDEO_BYTES:
         # Too big for a Telegram bot: send a compressed copy now, and the full-quality download link
@@ -171,6 +174,7 @@ def send_failure(what: str, stage: str, exc: BaseException) -> None:
                f"Problem: {html.escape(problem)}\n"
                f"Fix: {html.escape(fix)}\n\n"
                f"<code>{html.escape(f'{type(exc).__name__}: {exc}'[:500])}</code>"
+               + (f"\n\n🔁 {html.escape(os.environ['ACG_RETRY_NOTE'])}" if os.getenv("ACG_RETRY_NOTE") else "")
                + (f'\n\n<a href="{link}">Open the full log</a>' if link else ""))
 
 

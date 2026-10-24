@@ -1,13 +1,18 @@
-# Makes and uploads two Shorts a day, plus a LogExpense ad every Saturday. Each run starts ~2h early and uploads with a YouTube
-# scheduled publish time, so videos go live exactly at 8:00 and 20:00 Manila time even if
-# GitHub's scheduler runs late.
+# Makes and uploads two Shorts a day, plus a LogExpense ad every Saturday.
+# GitHub starts scheduled runs 2-7 hours late (especially on the hour), so runs start ~7h before
+# the posting slot at an off-peak minute. On-time runs schedule YouTube for the slot; late runs post
+# right away instead of waiting a day. A retry 3h after each run makes the video if it's still missing.
 name: Daily videos
 
 on:
   schedule:
-    - cron: "0 22 * * *"   # 06:00 Manila -> fun facts, public at 08:00
-    - cron: "0 10 * * *"   # 18:00 Manila -> inspiring story, public at 20:00
-    - cron: "0 2 * * 6"    # Saturday 10:00 Manila -> LogExpense ad, public at 12:00
+    - cron: "13 17 * * *"  # 01:13 Manila -> fun facts for 08:00
+    - cron: "13 5 * * *"   # 13:13 Manila -> inspiring story for 20:00
+    - cron: "13 21 * * 5"  # Saturday 05:13 Manila -> LogExpense ad for 12:00
+    # Retries, 3 hours later: only make a video if the normal run hasn't uploaded one.
+    - cron: "13 20 * * *"  # 04:13 Manila -> fun facts retry
+    - cron: "13 8 * * *"   # 16:13 Manila -> story retry
+    - cron: "13 0 * * 6"   # Saturday 08:13 Manila -> ad retry
   workflow_dispatch:
     inputs:
       style:
@@ -16,7 +21,7 @@ on:
         options: [facts, story, ad]
         default: facts
       upload:
-        description: "Upload to YouTube (facts -> next 8am, story -> next 8pm, ad -> next 12pm)"
+        description: "Upload to YouTube (scheduled for today's slot, or posted now if it has passed)"
         type: boolean
         default: false
 
@@ -57,14 +62,41 @@ jobs:
       - name: Pick video type
         id: plan
         run: |
+          retry=false; retry_at=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
-          elif [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
-            style=facts; upload=true
-          elif [ "${{ github.event.schedule }}" = "0 2 * * 6" ]; then
-            style=ad; upload=true
           else
-            style=story; upload=true
+            upload=true
+            case "${{ github.event.schedule }}" in
+              "13 17 * * *") style=facts; retry_at="4:13 AM" ;;
+              "13 20 * * *") style=facts; retry=true ;;
+              "13 5 * * *")  style=story; retry_at="4:13 PM" ;;
+              "13 8 * * *")  style=story; retry=true ;;
+              "13 21 * * 5") style=ad; retry_at="8:13 AM" ;;
+              "13 0 * * 6")  style=ad; retry=true ;;
+            esac
+          fi
+          echo "retry=$retry" >> "$GITHUB_OUTPUT"
+          if [ -n "$retry_at" ]; then
+            echo "ACG_RETRY_NOTE=A retry will run automatically at $retry_at (Manila)." >> "$GITHUB_ENV"
+          fi
+          if [ "$retry" = true ]; then
+            # Retry runs only make a video if the normal run (2 hours earlier) didn't upload one.
+            if python3 - "$style" <<'PY'
+          import json, sys
+          from datetime import datetime, timedelta, timezone
+          cutoff = datetime.now(timezone.utc) - timedelta(hours=9)
+          done = [e for e in json.load(open("history.json", encoding="utf-8"))
+                  if e.get("style") == sys.argv[1] and e.get("youtube") and e.get("date_utc")
+                  and datetime.fromisoformat(e["date_utc"]) >= cutoff]
+          sys.exit(0 if done else 1)
+          PY
+            then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "The $style video was already uploaded by the normal run - no retry needed." | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "No $style video was uploaded by the normal run - retrying now." | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
           fi
           if [ "$style" = ad ]; then
             echo "niche=budgeting tips" >> "$GITHUB_OUTPUT"   # used for trend hashtags only
@@ -115,7 +147,8 @@ jobs:
           PUBLISH: ${{ steps.plan.outputs.publish }}
           UPLOAD: ${{ steps.plan.outputs.upload }}
         run: |
-          args=(--niche "$NICHE" --style "$STYLE" --publish-next "$PUBLISH")
+          # Scheduled for today's slot if it's still ahead; posted publicly right away if the run is late.
+          args=(--niche "$NICHE" --style "$STYLE" --publish-slot "$PUBLISH")
           if [ "$STYLE" = "ad" ]; then
             export ACG_TREND_REGION=PH   # ads target the Philippines first
             args+=(--brief ads/logexpense.md --website logexpense.site --seconds 30
@@ -174,4 +207,4 @@ jobs:
           if [ -f output/.failure_reported ] || [ -z "$TELEGRAM_BOT_TOKEN" ]; then exit 0; fi
           curl -s -o /dev/null "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=❌ Daily ${STYLE:-video} run failed during setup (before the video was made). Log: ${RUN_URL}"
+            --data-urlencode "text=❌ Daily ${STYLE:-video} run failed during setup (before the video was made). Log: ${RUN_URL} ${ACG_RETRY_NOTE:+🔁 $ACG_RETRY_NOTE}"

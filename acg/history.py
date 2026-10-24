@@ -1,6 +1,6 @@
 """history.json: every video made, so daily runs don't repeat topics. Committed back by the workflow."""
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from .config import ROOT
 
@@ -28,7 +28,19 @@ def recent_outros(n: int = 6) -> list[str]:
     return [e["outro"] for e in load() if e.get("outro")][-n:] if n > 0 else []
 
 
+def uploaded_recently(style: str, hours: float) -> dict | None:
+    """The most recent video of `style` uploaded to YouTube in the last `hours`, if any (used by the
+    retry runs to skip when the normal run already succeeded)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    for e in reversed(load()):
+        if e.get("style") == style and e.get("youtube") and e.get("date_utc"):
+            if datetime.fromisoformat(e["date_utc"]) >= cutoff:
+                return e
+    return None
+
+
 def add(entry: dict) -> None:
     entries = load()
-    entries.append({"date": datetime.now().isoformat(timespec="minutes"), **entry})
+    entries.append({"date": datetime.now().isoformat(timespec="minutes"),
+                    "date_utc": datetime.now(timezone.utc).isoformat(timespec="minutes"), **entry})
     HISTORY.write_text(json.dumps(entries, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

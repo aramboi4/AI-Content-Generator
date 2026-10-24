@@ -27,7 +27,17 @@ def _next_publish_time(hhmm: str) -> str:
 
 def _local_time(iso_utc: str) -> str:
     at = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    return at.astimezone(ZoneInfo(config.TIMEZONE)).strftime("%b %d, %I:%M %p").replace(" 0", " ")
+    return at.astimezone(ZoneInfo(config.TIMEZONE)).strftime("%a %b %d, %I:%M %p").replace(" 0", " ")
+
+
+def check_recent(args: argparse.Namespace) -> None:
+    from . import history
+    e = history.uploaded_recently(args.style, args.hours)
+    if e:
+        print(f"Already uploaded in the last {args.hours:g}h: {e['topic']} ({e['youtube']})")
+        sys.exit(0)
+    print(f"No {args.style} video uploaded in the last {args.hours:g}h.")
+    sys.exit(1)
 
 
 def telegram_setup(args: argparse.Namespace) -> None:
@@ -40,7 +50,23 @@ def telegram_setup(args: argparse.Namespace) -> None:
     print(f"Your TELEGRAM_CHAT_ID is: {chat_id}\nAdd it to .env and as a GitHub secret.")
 
 
+def _slot_time(hhmm: str) -> str | None:
+    """Today's HH:MM slot (ACG_TZ) as ISO UTC if it's still ahead; None means "post now".
+    A late run (slot already passed, or a run after midnight for yesterday's slot) posts immediately
+    instead of waiting ~20 hours for the next day's slot."""
+    tz = ZoneInfo(config.TIMEZONE)
+    now = datetime.now(tz)
+    h, m = map(int, hhmm.split(":"))
+    at = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    ahead = at - now
+    if timedelta(minutes=15) <= ahead <= timedelta(hours=12):
+        return at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return None
+
+
 def _publish_at(args: argparse.Namespace) -> str | None:
+    if getattr(args, "publish_slot", None):
+        return _slot_time(args.publish_slot)
     return _next_publish_time(args.publish_next) if args.publish_next else args.publish_at
 
 
@@ -220,7 +246,9 @@ def make(args: argparse.Namespace) -> None:
                 print(f"    scene {i + 1}: image failed ({str(e)[:100]})")
         if clip is None and source:
             try:
-                clip = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4")
+                clip, how = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4",
+                                       narration=scene.narration)
+                print(f"    scene {i + 1}: {how}")
             except Exception as e:  # footage site down: keep going with the previous clip
                 footage_errors.append(str(e)[:120])
             unmatched += clip is None
@@ -286,7 +314,11 @@ def make(args: argparse.Namespace) -> None:
         from .media import make_thumbnail
         thumb = (make_thumbnail(video, workdir / "thumbnail.jpg", segments[0], pkg.tiktok.on_screen_title,
                                 args.caption_style) if config.CUSTOM_THUMBNAIL and not args.no_title else None)
-        url = upload(video, pkg.youtube, privacy=args.privacy, publish_at=publish_at, thumbnail=thumb)
+        privacy = args.privacy
+        if args.publish_slot and publish_at is None:  # run was late and the slot has passed: post now
+            privacy = "public"
+            print(f"    the {args.publish_slot} slot has already passed - posting publicly right away")
+        url = upload(video, pkg.youtube, privacy=privacy, publish_at=publish_at, thumbnail=thumb)
         if youtube.LAST_THUMBNAIL_ERROR:
             _warn(youtube.LAST_THUMBNAIL_ERROR)
         print(f"    {url}" + (f" (goes public {publish_at})" if publish_at else ""))
@@ -369,6 +401,8 @@ def main() -> None:
     m.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
     m.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     m.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time (ACG_TZ, default Asia/Manila)")
+    m.add_argument("--publish-slot", metavar="HH:MM",
+                   help="Schedule for today's HH:MM if it's still ahead, otherwise post publicly right away")
     m.add_argument("--no-title", action="store_true", help="Don't show the title card at the start")
     m.add_argument("--ending", default="random", choices=["random", "question", "statement"],
                    help="question = ends asking viewers + comments prompt; statement = lesson/payoff + follow outro")
@@ -382,9 +416,12 @@ def main() -> None:
     u.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     u.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time")
     sub.add_parser("telegram-setup", help="Print your Telegram chat id (after messaging your bot once)")
+    c = sub.add_parser("check", help="Exit 0 if a video of this style was uploaded recently (used by retry runs)")
+    c.add_argument("--style", required=True, choices=["facts", "story", "ad"])
+    c.add_argument("--hours", type=float, default=6)
     args = p.parse_args()
     try:
-        {"make": make, "upload": upload_existing, "telegram-setup": telegram_setup}[args.cmd](args)
+        {"make": make, "upload": upload_existing, "telegram-setup": telegram_setup, "check": check_recent}[args.cmd](args)
     except KeyboardInterrupt:
         sys.exit(130)
     except Exception as exc:

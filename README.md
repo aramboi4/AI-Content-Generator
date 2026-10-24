@@ -66,11 +66,11 @@ To change the logo, replace `assets/brand/logo_original.png` and ask Claude to r
 
 | Runs at (Manila) | Makes | Goes public on YouTube |
 |---|---|---|
-| 06:00 | fun facts | 08:00 |
-| 18:00 | inspiring story | 20:00 |
-| Saturday 10:00 | LogExpense ad (~30s) (pause with `ADS_PAUSED: "true"` in the workflow) | Saturday 12:00 |
+| 01:13 (retry 04:13) | fun facts | 08:00 |
+| 13:13 (retry 16:13) | inspiring story | 20:00 |
+| Saturday 05:13 (retry 08:13) | LogExpense ad (~30s) (pause with `ADS_PAUSED: "true"` in the workflow) | Saturday 12:00 |
 
-Each run uploads the video with a YouTube scheduled publish time, so it goes live exactly on the hour even if GitHub starts the run late. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 14 days).
+GitHub starts scheduled runs 2-7 hours late, so runs start about 7 hours before the slot. A run that finishes before the slot schedules the YouTube video for the slot; a run that's later than that posts it right away (never the next day). The retry only makes a video if the first run didn't upload one. Telegram shows "📅 Post on TikTok/Instagram: <day, time>" for every video. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 14 days).
 
 Setup: GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**, add:
 

@@ -21,10 +21,10 @@ YOUTUBE_ONLY_TAGS = re.compile(r"#(?:youtube)?shorts?(?:feed|video)?\b", re.IGNO
 MODELS = list(dict.fromkeys([MODEL, "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"]))
 
 
-def _generate(contents: str, config: types.GenerateContentConfig | None = None):
+def _generate(contents, config: types.GenerateContentConfig | None = None, rounds: int = 3):
     """Calls Gemini, retrying across free models on busy/rate-limit errors and dropped connections."""
     last = None
-    for attempt in range(3):
+    for attempt in range(rounds):
         for model in MODELS:
             try:
                 return client.models.generate_content(model=model, contents=contents, config=config)
@@ -36,7 +36,8 @@ def _generate(contents: str, config: types.GenerateContentConfig | None = None):
             except (httpx.TransportError, ConnectionError) as e:  # e.g. "Server disconnected without a response"
                 last = e
                 print(f"    {model} connection dropped ({type(e).__name__}), trying again...")
-        time.sleep(20 * (attempt + 1))
+        if attempt + 1 < rounds:
+            time.sleep(20 * (attempt + 1))
     raise last
 
 
@@ -313,6 +314,9 @@ Script rules:
   automatically - don't mention style). Vary framing across scenes: close-up, medium, wide.
 - visual_queries: simple, literal words a stock site (Pixabay/Pexels) would tag - objects, animals, places,
   people doing common actions. No abstract ideas ("hope", "mistake") and no names.
+  The FIRST query must name the scene's key visual exactly as described in the narration, keeping the
+  substance and quantity (e.g. "lava flow" for lava - never "lake"; "rabbits running" for many rabbits;
+  "volcano eruption", "crowd cheering"). Later queries can be broader but must still fit the line.
 
 Post copy rules:
 - Use hashtags from the research where they genuinely fit; mix broad + niche tags.
@@ -368,3 +372,30 @@ visual_queries (simple literal stock-footage words) and image_prompt, like the e
             new.append(s)
     at = max(1, len(pkg.scenes) - (2 if style == "story" else 1))
     return at, new[:n]
+
+
+class ClipPick(BaseModel):
+    best: int = Field(description="Number of the image that best shows the narration (1-based), or 0 if none fit")
+    score: int = Field(description="How literally that image matches the narration, 0-10")
+    reason: str = Field(description="One short sentence")
+
+
+def pick_clip(narration: str, images: list[bytes]) -> tuple[int | None, int]:
+    """Shows Gemini the candidates' preview images and returns (0-based index of the best, score),
+    or (None, score) when nothing plausibly matches."""
+    parts = [types.Part.from_text(text=(
+        f'A short video narrator says: "{narration}"\n\n'
+        f"Below are {len(images)} preview images of stock video clips, numbered 1 to {len(images)} in order. "
+        "Pick the one that most literally shows what is being said: the same subject, the same action, "
+        "the same quantity (one rabbit vs many rabbits) and the same substance (lava vs water, fire vs light). "
+        "Prefer a literal match over a pretty but unrelated shot. If none of them could reasonably accompany "
+        "this line, answer best = 0."))]
+    for i, img in enumerate(images, 1):
+        parts += [types.Part.from_text(text=f"Image {i}:"), types.Part.from_bytes(data=img, mime_type="image/jpeg")]
+    # One quick pass over the models, no waiting: if Gemini is busy, the caller falls back to tag matching.
+    resp = _generate(parts, types.GenerateContentConfig(response_mime_type="application/json",
+                                                        response_schema=ClipPick), rounds=1)
+    pick = resp.parsed if isinstance(resp.parsed, ClipPick) else ClipPick.model_validate_json(resp.text or "{}")
+    if pick.best < 1 or pick.best > len(images) or pick.score <= 1:
+        return None, pick.score
+    return pick.best - 1, pick.score
