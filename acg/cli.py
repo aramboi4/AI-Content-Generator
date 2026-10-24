@@ -105,6 +105,8 @@ def make(args: argparse.Namespace) -> None:
     pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
                         avoid=history.recent_topics(args.style), avoid_hooks=history.recent_hooks(),
                         brief=brief, website=args.website or "", ending=ending)
+    if writer_mod.LAST_WRITER != "Gemini":
+        _warn(f"Gemini was unavailable, so the script was written by the backup: {writer_mod.LAST_WRITER}.")
     if args.style != "ad":  # the matching call to action is added below; drop any the model wrote itself
         from .writer import strip_cta
         pkg.scenes[-1].narration = strip_cta(pkg.scenes[-1].narration)

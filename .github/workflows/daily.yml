@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write   # commit history.json so topics don't repeat
+  models: read      # GitHub Models: last-resort backup script writer
 
 concurrency:
   group: daily-videos
@@ -33,6 +34,8 @@ jobs:
     timeout-minutes: 45
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # for GitHub Models
       PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       YT_API_KEY: ${{ secrets.YT_API_KEY }}

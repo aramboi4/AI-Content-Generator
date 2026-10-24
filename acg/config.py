@@ -15,6 +15,7 @@ YT_CLIENT_SECRET = ROOT / "client_secret.json"
 YT_TOKEN = ROOT / "token.json"
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")  # free backup script writer (console.groq.com)
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 CF_API_TOKEN = os.getenv("CF_API_TOKEN", "")

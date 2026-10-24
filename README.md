@@ -3,7 +3,7 @@
 Makes faceless vertical short videos (YouTube Shorts / TikTok / Instagram Reels) from a niche:
 
 1. **Trend research** – pulls the most-viewed recent Shorts in your niche from YouTube (their hashtags and tags), plus optional Gemini web search (`ACG_WEB_SEARCH=1`, which isn't included in Gemini's free tier)
-2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags
+2. **Script + post copy** – Gemini writes the script and platform-specific titles, captions and hashtags. If every Gemini model fails, Groq (`openai/gpt-oss-120b`, then `gpt-oss-20b`) and then GitHub Models (`gpt-4o-mini`, using the workflow's own token) take over, and Telegram says which one wrote it
 3. **Voiceover** – Inworld's Clive or Dennis (picked at random) while free credits last, otherwise Kokoro `am_adam` (free, runs on the machine itself, can't be blocked), with Piper as a last resort. Microsoft's `edge-tts` voice is off (`ACG_USE_MICROSOFT_VOICE=1` to re-enable)
 4. **Visuals** – AI 3D cartoon images (Cloudflare Workers AI, free daily allowance) with the same character in every scene, or free stock clips from Pixabay/Pexels
 5. **Render** – 1080×1920 video with slow zoom in/out, one-word pop-in captions (Anton font), a purple title card, optional background music

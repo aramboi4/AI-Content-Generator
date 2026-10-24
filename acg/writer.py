@@ -1,15 +1,18 @@
 ﻿"""Gemini (free tier) calls: live trend research, then the script + per-platform post copy."""
+import json
+import os
 import random
 import re
 import time
 from datetime import date
 
 import httpx
+import requests
 from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, Field
 
-from .config import GEMINI_API_KEY, INWORLD_API_KEY, MODEL
+from .config import GEMINI_API_KEY, GROQ_API_KEY, INWORLD_API_KEY, MODEL
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 YOUTUBE_ONLY_TAGS = re.compile(r"#(?:youtube)?shorts?(?:feed|video)?\b", re.IGNORECASE)
@@ -35,6 +38,74 @@ def _generate(contents: str, config: types.GenerateContentConfig | None = None):
                 print(f"    {model} connection dropped ({type(e).__name__}), trying again...")
         time.sleep(20 * (attempt + 1))
     raise last
+
+
+# Backup writers when every Gemini model fails: free, OpenAI-compatible APIs, tried in this order.
+BACKUPS = [
+    ("Groq", "https://api.groq.com/openai/v1/chat/completions", GROQ_API_KEY,
+     ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]),
+    # GitHub Models works inside GitHub Actions with the workflow's own token (permissions: models: read).
+    ("GitHub Models", "https://models.github.ai/inference/chat/completions", os.getenv("GITHUB_TOKEN", ""),
+     ["openai/gpt-4o-mini"]),
+]
+LAST_WRITER = "Gemini"  # which service wrote the last script (reported in Telegram when it's a backup)
+
+
+def _backup_json(url: str, key: str, model: str, prompt: str, schema: type[BaseModel]) -> BaseModel:
+    system = ("Reply with ONLY a JSON object (no markdown, no commentary) that matches this JSON schema. "
+              "Include EVERY required field at every level.\n" + json.dumps(schema.model_json_schema()))
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
+    for attempt in range(4):
+        r = requests.post(url, timeout=180, headers={"Authorization": f"Bearer {key}"},
+                          json={"model": model, "temperature": 0.8, "response_format": {"type": "json_object"},
+                                "messages": messages})
+        if r.status_code == 429 and attempt < 3:  # per-minute free limit: wait as told, then retry
+            wait = min(float(r.headers.get("retry-after", 20) or 20), 60)
+            print(f"    {model} rate-limited, waiting {wait:.0f}s...")
+            time.sleep(wait)
+            continue
+        if r.status_code == 400 and "validate json" in r.text.lower() and attempt < 3:  # model emitted broken JSON
+            messages = messages[:2] + [{"role": "user", "content": "Your last reply was not valid JSON. Reply with "
+                                                                    "one complete, valid JSON object only."}]
+            continue
+        if not r.ok:
+            raise RuntimeError(f"{r.status_code}: {r.text[:200]}")
+        text = re.sub(r"^```(?:json)?|```$", "", r.json()["choices"][0]["message"]["content"].strip()).strip()
+        try:
+            return schema.model_validate_json(text)
+        except Exception as e:  # missing/invalid fields: show the model exactly what to fix
+            if attempt == 3:
+                raise
+            messages += [{"role": "assistant", "content": text},
+                         {"role": "user", "content": f"That JSON is incomplete or invalid:\n{str(e)[:1500]}\n"
+                                                     "Return the COMPLETE corrected JSON object with every required "
+                                                     "field filled in."}]
+
+
+def _structured(prompt: str, schema: type[BaseModel]) -> BaseModel:
+    """Asks Gemini for JSON matching `schema`; if every Gemini model fails, falls back to Groq, then
+    GitHub Models, so a Gemini outage doesn't stop the daily video."""
+    global LAST_WRITER
+    try:
+        resp = _generate(prompt, types.GenerateContentConfig(response_mime_type="application/json",
+                                                             response_schema=schema))
+        result = resp.parsed if isinstance(resp.parsed, schema) else schema.model_validate_json(resp.text or "{}")
+        LAST_WRITER = "Gemini"
+        return result
+    except Exception as gemini_error:
+        errors_seen = [f"Gemini: {type(gemini_error).__name__}: {str(gemini_error)[:120]}"]
+    for name, url, key, models in BACKUPS:
+        if not key:
+            continue
+        for model in models:
+            try:
+                print(f"    Gemini failed - writing with {name} ({model})...")
+                result = _backup_json(url, key, model, prompt, schema)
+                LAST_WRITER = f"{name} ({model})"
+                return result
+            except Exception as e:
+                errors_seen.append(f"{name} {model}: {type(e).__name__}: {str(e)[:120]}")
+    raise RuntimeError("All script writers failed: " + " | ".join(errors_seen))
 
 
 class Scene(BaseModel):
@@ -251,13 +322,7 @@ Post copy rules:
 - Instagram: 1-3 line caption with a call to action (save/share/comment), then hashtags.
 - YouTube: title must end with #Shorts; description ends with 3-5 hashtags.
 {ad_copy}"""
-    resp = _generate(
-        prompt, types.GenerateContentConfig(response_mime_type="application/json", response_schema=VideoPackage)
-    )
-    pkg = resp.parsed if isinstance(resp.parsed, VideoPackage) else None
-    if pkg is None:
-        pkg = VideoPackage.model_validate_json(resp.text or "{}")
-    return pkg
+    return _structured(prompt, VideoPackage)
 
 
 class ExtraScenes(BaseModel):
@@ -290,9 +355,7 @@ Return ONLY the {n} new scene(s) - do not repeat or include any existing scene.
 Write about {words} words of narration in total across the new scenes, in the same voice and style:
 plain spoken English, short sentences, no emojis, no stage directions. Each new scene needs narration,
 visual_queries (simple literal stock-footage words) and image_prompt, like the existing scenes."""
-    resp = _generate(prompt, types.GenerateContentConfig(response_mime_type="application/json",
-                                                         response_schema=ExtraScenes))
-    extra = resp.parsed if isinstance(resp.parsed, ExtraScenes) else ExtraScenes.model_validate_json(resp.text or "{}")
+    extra = _structured(prompt, ExtraScenes)
     # The model sometimes echoes the whole script back: keep only genuinely new scenes, at most n.
     def norm(t: str) -> str:
         return re.sub(r"\W+", " ", t).strip().lower()
