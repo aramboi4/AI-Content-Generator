@@ -34,7 +34,7 @@ def render_segment(clip: Path | None, duration: float, out: Path, zoom_out: bool
     factor = f"(1.08-0.08*t/{d})" if zoom_out else f"(1+0.08*t/{d})"
     zoom = (f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase,crop={WIDTH}:{HEIGHT},fps={FPS},"
             f"scale=w='trunc({WIDTH}*{factor}/2)*2':h=-2:eval=frame:flags=bicubic,"
-            f"crop={WIDTH}:{HEIGHT},format=yuv420p")
+            f"crop={WIDTH}:{HEIGHT},setsar=1,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709,format=yuv420p")  # identical settings in every segment
     if clip and clip.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}:
         src = ["-loop", "1", "-framerate", str(FPS), "-i", str(clip)]
     elif clip:
@@ -237,9 +237,11 @@ def final_render(segments: list[Path], narration: Path, captions: Path, out: Pat
     listfile.write_text("".join(f"file '{p.name}'\n" for p in segments), encoding="utf-8")
 
     tracks = sorted(p for p in MUSIC_DIR.glob("*") if p.suffix.lower() in {".mp3", ".m4a", ".wav"}) if MUSIC_DIR.exists() else []
-    args = ["-f", "concat", "-safe", "0", "-i", listfile.name, "-i", narration.name]
+    args = ["-reinit_filter", "0", "-f", "concat", "-safe", "0", "-i", listfile.name, "-i", narration.name]
     fonts = os.path.relpath(FONTS_DIR, workdir).replace("\\", "/")
-    filters = [f"[0:v]subtitles={captions.name}:fontsdir={fonts}[v0]"]
+    # Segments must look identical to FFmpeg; a mid-stream change (e.g. pixel shape or color tags) made it
+    # rebuild the filter chain, which stalled the render. Normalize, and never rebuild.
+    filters = [f"[0:v]setsar=1,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709,subtitles={captions.name}:fontsdir={fonts}[v0]"]
     if tracks:
         args += ["-stream_loop", "-1", "-i", str(random.choice(tracks))]
         af = (f"[2:a]volume={music_volume}[m];"
