@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 
 from .config import GEMINI_API_KEY, GROQ_API_KEY, INWORLD_API_KEY, MODEL
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+# A time limit, so a request that never answers moves on to the next model or backup instead of hanging the run.
+client = genai.Client(api_key=GEMINI_API_KEY, http_options=types.HttpOptions(timeout=120_000))  # milliseconds
 YOUTUBE_ONLY_TAGS = re.compile(r"#(?:youtube)?shorts?(?:feed|video)?\b", re.IGNORECASE)
 
 # Free-tier models get busy (503) or rate limited (429); fall back through these.
@@ -115,8 +116,9 @@ class Scene(BaseModel):
         "2-3 stock-footage searches from specific to generic, each 1-2 common words naming something "
         "visible (noun first), e.g. ['octopus', 'coral reef', 'ocean']"))
     image_prompt: str = Field(description=(
-        "One-sentence image prompt for this scene: who/what is shown, action, setting, camera framing. "
-        "If the main character appears, refer to them as 'the character' (their look is defined separately)."))
+        "One-sentence image prompt showing exactly what this scene's narration says: who/what is shown, action, "
+        "setting, camera framing. If the main character appears, write 'the character' (their look is defined "
+        "separately)."))
 
 
 class YouTubePost(BaseModel):
@@ -189,7 +191,8 @@ STYLE_RULES = {
 - Scene 1 is the hook and must pull the viewer in within 2 seconds (hook type for this video is given below).
 - Structure: setup -> struggle -> turning point -> lesson. Keep the lesson to one sentence at the end.
 - Warm, simple, emotional language; no cliches like "little did they know".
-- If it's about a real person or event, every detail must be true and well documented.
+- If it's about a real person or event, every detail must be true and well documented. Never invent dramatic
+  moments, weather, dangers or dialogue for effect; the true events are the story.
   If it's a parable or fictional, the narration must make that clear within the first two scenes, in natural,
   varied wording (e.g. "Legend says...", "As the parable goes...", "In a village somewhere, the tale says..."),
   and topic must start with "Parable:". Never present an invented story as true.
@@ -265,6 +268,15 @@ _CTA_SENTENCE = re.compile(r"[^.!?]*\b(follow|subscribe|like and share|hit the b
                            re.IGNORECASE)
 
 
+def fix_narration(scenes: list, character: str) -> None:
+    """Safety net: "the character" is image-prompt wording and must never be spoken."""
+    female = re.search(r"\b(woman|girl|female|she|her|lady|grandmother|mother)\b", character, re.IGNORECASE)
+    pronoun = "she" if female else "he"
+    for scene in scenes:
+        scene.narration = re.sub(r"\bThe character\b", pronoun.capitalize(), scene.narration)
+        scene.narration = re.sub(r"\bthe character\b", pronoun, scene.narration, flags=re.IGNORECASE)
+
+
 def strip_cta(text: str) -> str:
     """Removes a trailing follow/subscribe/comments sentence the model added on its own."""
     stripped = _CTA_SENTENCE.sub("", text).strip()
@@ -309,9 +321,24 @@ Script rules:
 - Never open with "Did you know", "There's an old story", "Have you ever", "Imagine", or "Think again".
 {"- Recent openings - don't reuse their wording or sentence pattern:" + chr(10) + recent if recent else ""}
 - Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
+- In `narration`, refer to people naturally by name or as he/she. The words "the character" are ONLY for
+  image_prompt and must never appear in narration, titles or captions.
 - Never add calls to action yourself (follow, subscribe, like, share, comment) - they are added automatically.
-- image_prompt: a vivid, concrete, single moment that illustrates the narration (3D cartoon look is added
-  automatically - don't mention style). Vary framing across scenes: close-up, medium, wide.
+- image_prompt: the exact moment this scene's narration describes, so a viewer could guess the line from the
+  picture: the same subject, action, emotion, quantity and setting (many rabbits chasing a man, not one rabbit;
+  a valley flooded with glowing lava, not a lake). Name every visible object and person. Vary framing across
+  scenes: close-up, medium, wide. The art style is added automatically - don't mention style. Never ask
+  for signs, labels, writing or anything with lettering, because image models garble text. Name the country or
+  region in the prompt whenever the story has one, so buildings and clothes fit. Whenever the main character appears, write exactly "the character" (never a name or a
+  description; their look is supplied separately). Describe anyone else in full each time. For fun facts,
+  show the fact's real subject; only use the character when the line is about a person.
+  Show the line's main EVENT and its emotional meaning, not just its setting or background. When a line has
+  several ideas, draw the human moment that matters: for "famine forced him to drop out of school", show the sad
+  boy looking back at his school from outside while classmates in uniform go in, with dry fields around, not
+  just dry land. Use concrete visual clues (school, uniform, books, classmates) to make the event obvious.
+  Keep every picture believable: realistic scale and physics (a small spark stays small, never lightning, unless
+  the narration really says so), calm natural poses with hands clearly holding things, and accurate period,
+  place and objects (a scrap-built windmill in a Malawian village, not a Dutch one). Avoid dangerous stunts.
 - visual_queries: simple, literal words a stock site (Pixabay/Pexels) would tag - objects, animals, places,
   people doing common actions. No abstract ideas ("hope", "mistake") and no names.
   The FIRST query must name the scene's key visual exactly as described in the narration, keeping the
@@ -326,7 +353,9 @@ Post copy rules:
 - Instagram: 1-3 line caption with a call to action (save/share/comment), then hashtags.
 - YouTube: title must end with #Shorts; description ends with 3-5 hashtags.
 {ad_copy}"""
-    return _structured(prompt, VideoPackage)
+    pkg = _structured(prompt, VideoPackage)
+    fix_narration(pkg.scenes, pkg.character)
+    return pkg
 
 
 class ExtraScenes(BaseModel):
@@ -360,6 +389,7 @@ Write about {words} words of narration in total across the new scenes, in the sa
 plain spoken English, short sentences, no emojis, no stage directions. Each new scene needs narration,
 visual_queries (simple literal stock-footage words) and image_prompt, like the existing scenes."""
     extra = _structured(prompt, ExtraScenes)
+    fix_narration(extra.scenes, pkg.character)
     # The model sometimes echoes the whole script back: keep only genuinely new scenes, at most n.
     def norm(t: str) -> str:
         return re.sub(r"\W+", " ", t).strip().lower()
@@ -399,3 +429,31 @@ def pick_clip(narration: str, images: list[bytes]) -> tuple[int | None, int]:
     if pick.best < 1 or pick.best > len(images) or pick.score <= 1:
         return None, pick.score
     return pick.best - 1, pick.score
+
+
+class ImageCheck(BaseModel):
+    matches_line: int = Field(description="0-10: does the picture show what the narrator says?")
+    believable: int = Field(description="0-10: physically plausible, realistic scale, no exaggerated effects?")
+    anatomy: int = Field(description="0-10: are bodies, arms, hands and faces drawn correctly?")
+    problem: str = Field(description="The single most important thing to fix, as a drawing instruction; empty if none")
+
+
+def check_image(narration: str, image: bytes, plan: str = "") -> ImageCheck:
+    """Reviews a generated scene image against its narration line (one quick pass; raises if Gemini is busy)."""
+    parts = [types.Part.from_text(text=(
+        f'This image illustrates a short video where the narrator says: "{narration}"\n'
+        f'The planned picture was: "{plan}"\n'
+        "Anything the plan asks for must be clearly visible; a key element that's missing (such as the school in a "
+        "line about leaving school) scores 5 or less. In `problem`, keep to the plan: say what to add or correct, "
+        "never suggest a different idea. Any visible lettering or sign scores believable 4 or less (tell it to "
+        "remove the text). Buildings, clothes and objects that don't fit the story's country or period score "
+        "believable 6 or less.\n"
+        "Review it strictly. The art style itself is fine. Score how well it shows that line (subject, action, "
+        "quantity, place, period); a picture that shows only the setting and misses the line's main event scores 4 "
+        "or less; whether it's believable (realistic scale, physics and objects; no exaggerated "
+        "effects like huge lightning from a small device); and its anatomy (extra, missing or twisted arms, hands "
+        "or fingers, limbs bending wrongly, distorted faces).")),
+        types.Part.from_bytes(data=image, mime_type="image/jpeg")]
+    resp = _generate(parts, types.GenerateContentConfig(response_mime_type="application/json",
+                                                        response_schema=ImageCheck), rounds=1)
+    return resp.parsed if isinstance(resp.parsed, ImageCheck) else ImageCheck.model_validate_json(resp.text or "{}")

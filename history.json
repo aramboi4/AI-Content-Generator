@@ -196,6 +196,16 @@
     "folder": "20261012-010624-surprising-weather-phenomena-facts"
   },
   {
+    "date": "2026-10-13T17:18",
+    "style": "story",
+    "topic": "Parable: The Sower of Quiet Seeds",
+    "hook": "How do you plant a tree knowing you will never sit in its shade? An old farmer asked himself this every morning.",
+    "outro": null,
+    "title": "The Old Farmer Who Planted for Tomorrow #Shorts",
+    "youtube": "https://youtube.com/shorts/zLkvVwDD0zY",
+    "folder": "20261013-171538-parable-the-sower-of-quiet-seeds"
+  },
+  {
     "date": "2026-10-13T21:18",
     "style": "facts",
     "topic": "Surprising Weather Facts",
@@ -261,16 +271,6 @@
     "folder": "20261013-221101-surprising-language-facts"
   },
   {
-    "date": "2026-10-13T17:18",
-    "style": "story",
-    "topic": "Parable: The Sower of Quiet Seeds",
-    "hook": "How do you plant a tree knowing you will never sit in its shade? An old farmer asked himself this every morning.",
-    "outro": null,
-    "title": "The Old Farmer Who Planted for Tomorrow #Shorts",
-    "youtube": "https://youtube.com/shorts/zLkvVwDD0zY",
-    "folder": "20261013-171538-parable-the-sower-of-quiet-seeds"
-  },
-  {
     "date": "2026-10-14T01:02",
     "style": "facts",
     "topic": "Surprising Weather and Atmospheric Facts",
@@ -331,6 +331,16 @@
     "folder": "20261016-142509-parable-the-quiet-gift-of-the-bench"
   },
   {
+    "date": "2026-10-17T00:18",
+    "style": "facts",
+    "topic": "Surprising Deep Earth Geology Facts",
+    "hook": "Earth holds three times more water locked deep inside its mantle than all our surface oceans combined.",
+    "outro": "Want more like this? Tap follow!",
+    "title": "The Secret Ocean Hidden 400 Miles Underground #Shorts",
+    "youtube": "https://youtube.com/shorts/uexLrP7zB78",
+    "folder": "20261017-001346-surprising-deep-earth-geology-facts"
+  },
+  {
     "date": "2026-10-17T02:27",
     "style": "story",
     "topic": "Parable: The Mountain Climber's Last Step",
@@ -371,16 +381,6 @@
     "folder": "20261017-030427-parable-the-echo-in-the-mountains"
   },
   {
-    "date": "2026-10-17T00:18",
-    "style": "facts",
-    "topic": "Surprising Deep Earth Geology Facts",
-    "hook": "Earth holds three times more water locked deep inside its mantle than all our surface oceans combined.",
-    "outro": "Want more like this? Tap follow!",
-    "title": "The Secret Ocean Hidden 400 Miles Underground #Shorts",
-    "youtube": "https://youtube.com/shorts/uexLrP7zB78",
-    "folder": "20261017-001346-surprising-deep-earth-geology-facts"
-  },
-  {
     "date": "2026-10-17T06:53",
     "style": "ad",
     "topic": "Ad: family arguing over payday grocery spending -> shared household workspace with smart budgets",
@@ -389,6 +389,16 @@
     "title": "How Our Family Finally Stopped Fighting About Money #Shorts",
     "youtube": "https://youtube.com/shorts/vWMRxdqV-WM",
     "folder": "20261017-065059-ad-family-arguing-over-payday-grocery-sp"
+  },
+  {
+    "date": "2026-10-17T13:26",
+    "style": "story",
+    "topic": "The Champion Who Smuggled Lives",
+    "hook": "A Tour de France champion cycled thousands of miles through military checkpoints with forged documents hidden inside his bike frame.",
+    "outro": null,
+    "title": "He Smuggled 800 Passports in His Bike Frame #Shorts",
+    "youtube": "https://youtube.com/shorts/i4FvP6QeJY0",
+    "folder": "20261017-132201-the-champion-who-smuggled-lives"
   },
   {
     "date": "2026-10-17T15:17",
@@ -429,16 +439,6 @@
     "title": "He Planted a Tree Every Day for 40 Years #Shorts",
     "youtube": null,
     "folder": "20261017-153533-the-man-who-planted-a-forest"
-  },
-  {
-    "date": "2026-10-17T13:26",
-    "style": "story",
-    "topic": "The Champion Who Smuggled Lives",
-    "hook": "A Tour de France champion cycled thousands of miles through military checkpoints with forged documents hidden inside his bike frame.",
-    "outro": null,
-    "title": "He Smuggled 800 Passports in His Bike Frame #Shorts",
-    "youtube": "https://youtube.com/shorts/i4FvP6QeJY0",
-    "folder": "20261017-132201-the-champion-who-smuggled-lives"
   },
   {
     "date": "2026-10-17T23:55",
@@ -571,17 +571,6 @@
     "folder": "20261024-071022-ad-awkwardly-tracking-loans-and-utang-wi"
   },
   {
-    "date": "2026-10-25T03:08",
-    "date_utc": "2026-10-24T19:08+00:00",
-    "style": "facts",
-    "topic": "Mind-Bending Mathematics and Probability Facts",
-    "hook": "A room of just twenty-three people has a fifty percent chance of sharing a birthday.",
-    "outro": "Follow along for more every day!",
-    "title": "Math Facts That Sound Completely Fake #Shorts",
-    "youtube": null,
-    "folder": "20261025-030313-mind-bending-mathematics-and-probability"
-  },
-  {
     "date": "2026-10-24T22:36",
     "date_utc": "2026-10-24T22:36+00:00",
     "style": "facts",
@@ -591,6 +580,17 @@
     "title": "The Secret Everyday Objects Behind Famous Movie Sounds #Shorts",
     "youtube": "https://youtube.com/shorts/o9oCUZS6qFk",
     "folder": "20261024-222800-surprising-foley-art-and-movie-sound-eff"
+  },
+  {
+    "date": "2026-10-25T03:08",
+    "date_utc": "2026-10-24T19:08+00:00",
+    "style": "facts",
+    "topic": "Mind-Bending Mathematics and Probability Facts",
+    "hook": "A room of just twenty-three people has a fifty percent chance of sharing a birthday.",
+    "outro": "Follow along for more every day!",
+    "title": "Math Facts That Sound Completely Fake #Shorts",
+    "youtube": null,
+    "folder": "20261025-030313-mind-bending-mathematics-and-probability"
   },
   {
     "date": "2026-10-25T10:05",
@@ -877,5 +877,38 @@
     "title": "The 14-Year-Old Boy Who Saved His Village From Famine #Shorts",
     "youtube": "https://youtube.com/shorts/c1lnBmefMD0",
     "folder": "20261107-114258-the-boy-who-harnessed-the-wind"
+  },
+  {
+    "date": "2026-11-07T19:21",
+    "date_utc": "2026-11-07T11:21+00:00",
+    "style": "story",
+    "topic": "The Boy Who Built a Windmill",
+    "hook": "Sparks flew in the night as a teenager clung to a rickety wooden tower in a storm.",
+    "outro": "Hit follow so you don't miss the next one!",
+    "title": "He Built a Windmill from Junk to Save His Village #Shorts",
+    "youtube": null,
+    "folder": "20261107-191808-the-boy-who-built-a-windmill"
+  },
+  {
+    "date": "2026-11-07T19:53",
+    "date_utc": "2026-11-07T11:53+00:00",
+    "style": "story",
+    "topic": "The Man Who Fed the World",
+    "hook": "In 1944, in the sun-baked fields of Mexico, a young scientist named Norman Borlaug set out to stop hunger.",
+    "outro": "Follow along for more every day!",
+    "title": "The Quiet Scientist Who Saved One Billion Lives #Shorts",
+    "youtube": null,
+    "folder": "20261107-194404-the-man-who-fed-the-world"
+  },
+  {
+    "date": "2026-11-07T20:02",
+    "date_utc": "2026-11-07T12:02+00:00",
+    "style": "facts",
+    "topic": "Surprising Ocean Trench Pressures",
+    "hook": "You probably think the deepest part of the ocean is completely silent, but that is wrong.",
+    "outro": "Stick around and follow for more!",
+    "title": "The Deep Ocean Is Not Quiet #Shorts",
+    "youtube": null,
+    "folder": "20261107-195456-surprising-ocean-trench-pressures"
   }
 ]

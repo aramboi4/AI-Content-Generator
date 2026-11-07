@@ -214,37 +214,49 @@ def make(args: argparse.Namespace) -> None:
 
     STATE["stage"] = "footage"
     visuals = args.visuals
+    if visuals == "auto":  # AI scene images when Cloudflare is set up, otherwise stock footage
+        visuals = "ai" if images.available() else "stock"
     if visuals == "ai" and not images.available():
         sys.exit("--visuals ai needs CF_ACCOUNT_ID and CF_API_TOKEN in .env (see README).")
     source = provider()
     char_ref = None
     if visuals == "ai":
         print("4/6 Generating AI scene images and rendering scenes...")
-        print("    character reference...")
-        char_ref = images.generate(
-            f"Character design reference: {pkg.character}. Full body, front view, friendly expression, "
-            "plain soft background", workdir / "character.jpg", seed=args.seed)
+        try:  # a head-and-shoulders reference keeps the face and clothes without pinning the pose
+            char_ref = images.generate(
+                f"Head and shoulders portrait of {pkg.character}, neutral expression, plain soft background",
+                workdir / "character.jpg", seed=args.seed)
+        except Exception as e:  # e.g. daily free allowance used up: every scene falls back to stock below
+            print(f"    character portrait failed ({str(e)[:100]})")
     else:
         print("4/6 Fetching stock footage and rendering scenes...")
         if not source:
             _warn("No footage key (PIXABAY_API_KEY) - the video uses plain backgrounds.")
-    if visuals == "stock" and source:  # Pixabay/Pexels ask that the footage source be credited
-        pkg.youtube.description += f"\n\nStock footage: {source}"
-        (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
     used: set[int] = set()
     segments, words, t, last_clip = [], [], 0.0, None
-    image_fails, footage_errors, unmatched = 0, [], 0
+    image_fails, footage_errors, unmatched, reused = 0, [], 0, False
     for i, (scene, v) in enumerate(zip(pkg.scenes, voices)):
         clip = None
         if visuals == "ai":
             try:
-                clip = images.generate(
-                    f"{scene.image_prompt}. The character looks exactly like the character in image 0: {pkg.character}",
-                    workdir / f"scene_{i:02d}.jpg", refs=[char_ref], seed=args.seed + i + 1)
-            except RuntimeError as e:  # e.g. daily free allowance used up: fall back to stock footage
+                has_character = char_ref is not None and "the character" in scene.image_prompt.lower()
+                prompt = scene.image_prompt
+                if has_character:
+                    prompt += (f". Show this action clearly with a new pose and setting. Use image 0 ONLY for the "
+                               f"character's face, hair and clothes: {pkg.character}. Do not copy its pose, framing "
+                               "or background")
+                clip, review = images.generate_checked(prompt, scene.narration, workdir / f"scene_{i:02d}.jpg",
+                                                       refs=[char_ref] if has_character else [],
+                                                       seed=args.seed + i + 1, plan=scene.image_prompt)
+                print(f"    scene {i + 1}: {review}")
+            except Exception as e:  # e.g. daily free allowance used up: fall back to stock footage
                 image_fails += 1
                 print(f"    scene {i + 1}: image failed ({str(e)[:100]})")
-        if clip is None and source:
+        # One blocked image: keep the previous picture so a real clip doesn't appear mid-cartoon.
+        if clip is None and visuals == "ai" and last_clip is not None and last_clip.suffix == ".jpg" and not reused:
+            reused = True
+            print(f"    scene {i + 1}: keeping the previous picture")
+        elif clip is None and source:
             try:
                 clip, how = fetch_clip(scene.visual_queries, v["duration"], used, workdir / f"clip_{i:02d}.mp4",
                                        narration=scene.narration)
@@ -254,6 +266,8 @@ def make(args: argparse.Namespace) -> None:
             unmatched += clip is None
         status = "ok" if clip else "no match, reusing previous" if last_clip else "no match, plain background"
         print(f"    scene {i + 1}: {scene.image_prompt if visuals == 'ai' else scene.visual_queries} -> {status}")
+        if clip is not None and clip != last_clip:
+            reused = False
         clip = last_clip = clip or last_clip
         seg = workdir / f"seg_{i:02d}.mp4"
         render_segment(clip, v["duration"], seg, zoom_out=i % 2 == 1)
@@ -261,8 +275,12 @@ def make(args: argparse.Namespace) -> None:
         words += [{**w, "start": w["start"] + t, "end": w["end"] + t, "scene": i} for w in v["words"]]
         t += v["duration"]
     STATE["stage"] = "render"
+    if source and (visuals == "stock" or any(workdir.glob("clip_*.mp4"))):  # Pixabay/Pexels ask that the footage source be credited
+        pkg.youtube.description += f"\n\nStock footage: {source}"
+    (workdir / "package.json").write_text(pkg.model_dump_json(indent=2), encoding="utf-8")
     if image_fails:
-        _warn(f"{image_fails} AI image(s) failed (free daily allowance?) - stock footage used instead.")
+        _warn(f"{image_fails} AI image(s) failed (safety filter or free daily allowance) - the previous picture "
+              "or stock footage was used instead.")
     if footage_errors:
         _warn(f"Footage site errors on {len(footage_errors)} scene(s): {footage_errors[0]}")
     if unmatched >= max(2, len(pkg.scenes) // 2):
@@ -390,8 +408,8 @@ def main() -> None:
     m.add_argument("--seconds", type=int, default=45, help="Target length (default 45)")
     m.add_argument("--min-seconds", type=int, default=30,
                    help="Minimum length of the main content, not counting the outro (default 30)")
-    m.add_argument("--visuals", default="stock", choices=["stock", "ai"],
-                   help="stock footage (default) or AI 3D images (needs free Cloudflare setup)")
+    m.add_argument("--visuals", default="auto", choices=["auto", "ai", "stock"],
+                   help="AI 3D scene images or stock footage (auto: AI when Cloudflare is set up)")
     m.add_argument("--seed", type=int, default=7, help="Image seed; change it for a different-looking character")
     m.add_argument("--caption-style", default="classic", choices=["classic", "bold"],
                    help="classic: 3-word captions (default); bold: one big word + title card")

@@ -51,6 +51,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ACG_TZ: Asia/Manila
+      ACG_ART_STYLE: 3d   # AI image style: 3d or realistic
       # Scheduled LogExpense ads: set ADS_PAUSED to "false" to run them every Saturday from ADS_START_DATE.
       ADS_PAUSED: "false"
       ADS_START_DATE: "2026-10-17"
@@ -130,14 +131,15 @@ jobs:
         if: steps.plan.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      - name: Cache backup voice models (Kokoro, Piper)
+      - name: Cache voice and speech models (Kokoro, Piper, Whisper)
         if: steps.plan.outputs.skip != 'true'
         uses: actions/cache@v6
         with:
           path: |
             assets/kokoro
             assets/piper
-          key: voices-kokoro-v1.0-piper-ryan
+            assets/whisper
+          key: voices-kokoro-v1.0-piper-ryan-whisper-base-en
 
       - name: Make video
         if: steps.plan.outputs.skip != 'true'

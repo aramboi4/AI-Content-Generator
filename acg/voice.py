@@ -8,17 +8,20 @@
 """
 import asyncio
 import base64
+import difflib
 import random
 import re
+import subprocess
 import time
 import wave
 from pathlib import Path
 
 import edge_tts
+import numpy as np
 import requests
 
 from .config import (INWORLD_API_KEY, INWORLD_MODEL, INWORLD_VOICES, KOKORO_DIR, KOKORO_MATCH, KOKORO_SPEED, USE_MICROSOFT_VOICE,
-                     PIPER_DIR, PIPER_VOICE)
+                     PIPER_DIR, PIPER_VOICE, WHISPER_DIR)
 
 
 def inworld_available() -> bool:
@@ -36,7 +39,7 @@ def inworld_available() -> bool:
         return False
 
 KOKORO_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1"
-from .media import probe_duration
+from .media import FFMPEG, probe_duration
 
 TICKS = 10_000_000  # edge-tts offsets are in 100ns units
 EDGE_RETRY_WAITS = (15, 45)  # seconds to wait before the 2nd and 3rd edge-tts attempts
@@ -116,6 +119,60 @@ def _estimate_words(text: str, duration: float) -> list[dict]:
     return words
 
 
+_whisper = None
+
+
+def _timed_words(text: str, audio: Path) -> list[dict]:
+    """Word timings for engines that don't report them (Kokoro, Piper): Whisper listens to the audio to find
+    when each word is spoken, while the words themselves always come from the script. Words Whisper missed
+    are placed between their neighbours. Falls back to an estimate if Whisper isn't available."""
+    global _whisper
+    duration = probe_duration(audio)
+    try:
+        if _whisper is None:
+            from faster_whisper import WhisperModel
+            WHISPER_DIR.mkdir(parents=True, exist_ok=True)
+            _whisper = WhisperModel("base.en", device="cpu", compute_type="int8", download_root=str(WHISPER_DIR))
+        # Decode with FFmpeg and pass raw samples: faster-whisper's own file decoding breaks on PyAV 19.
+        raw = subprocess.run([FFMPEG, "-v", "error", "-i", str(audio), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"],
+                             capture_output=True, check=True).stdout
+        samples = np.frombuffer(raw, np.int16).astype(np.float32) / 32768
+        segments, _ = _whisper.transcribe(samples, language="en", word_timestamps=True, beam_size=1,
+                                          initial_prompt=text)
+        heard = [w for seg in segments for w in seg.words]
+    except Exception as e:
+        print(f"    Whisper timing unavailable ({type(e).__name__}) - estimating caption timing.")
+        return _estimate_words(text, duration)
+
+    def norm(w: str) -> str:
+        return re.sub(r"\W", "", w).lower()
+
+    tokens = text.split()
+    script, spoken = [norm(t) for t in tokens], [norm(w.word) for w in heard]
+    words = [{"text": re.sub(r"^[^\w']+|[^\w']+$", "", t) or t, "start": None, "end": None} for t in tokens]
+    for block in difflib.SequenceMatcher(None, script, spoken, autojunk=False).get_matching_blocks():
+        for k in range(block.size):
+            words[block.a + k]["start"] = float(heard[block.b + k].start)
+            words[block.a + k]["end"] = float(heard[block.b + k].end)
+    if sum(w["start"] is not None for w in words) < len(words) / 2:  # too little agreement to trust
+        return _estimate_words(text, duration)
+    i = 0
+    while i < len(words):  # fill runs of unmatched words evenly between the matched words around them
+        if words[i]["start"] is not None:
+            i += 1
+            continue
+        j = i
+        while j < len(words) and words[j]["start"] is None:
+            j += 1
+        lo = words[i - 1]["end"] if i else 0.0
+        hi = words[j]["start"] if j < len(words) else duration
+        step = max(hi - lo, 0.01) / (j - i)
+        for k in range(i, j):
+            words[k]["start"], words[k]["end"] = lo + step * (k - i), lo + step * (k - i + 1)
+        i = j
+    return words
+
+
 def _piper_all(narrations: list[str], rate: str, workdir: Path, prefix: str = "voice") -> list[tuple[Path, list[dict]]]:
     from piper import PiperVoice, SynthesisConfig
 
@@ -132,13 +189,12 @@ def _piper_all(narrations: list[str], rate: str, workdir: Path, prefix: str = "v
         path = workdir / f"{prefix}_{i:02d}.wav"
         with wave.open(str(path), "wb") as w:
             voice.synthesize_wav(text, w, syn_config=cfg)
-        out.append((path, _estimate_words(text, probe_duration(path))))
+        out.append((path, _timed_words(text, path)))
     return out
 
 
 def _kokoro_all(narrations: list[str], kvoice: str, rate: str, workdir: Path,
                 prefix: str = "voice") -> list[tuple[Path, list[dict]]]:
-    import numpy as np
     from kokoro_onnx import Kokoro
 
     KOKORO_DIR.mkdir(parents=True, exist_ok=True)
@@ -164,7 +220,7 @@ def _kokoro_all(narrations: list[str], kvoice: str, rate: str, workdir: Path,
             w.setsampwidth(2)
             w.setframerate(sr)
             w.writeframes((np.clip(audio, -1, 1) * 32767).astype(np.int16).tobytes())
-        out.append((path, _estimate_words(text, probe_duration(path))))
+        out.append((path, _timed_words(text, path)))
     return out
 
 

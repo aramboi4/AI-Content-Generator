@@ -38,6 +38,7 @@ KOKORO_SPEED = float(os.getenv("ACG_KOKORO_SPEED", "1.12"))  # base pace the use
 USE_MICROSOFT_VOICE = os.getenv("ACG_USE_MICROSOFT_VOICE", "0") == "1"
 KOKORO_DIR = ROOT / "assets" / "kokoro"  # model downloaded here on first use (~340 MB, not in git)
 PIPER_VOICE = os.getenv("ACG_PIPER_VOICE", "en_US-ryan-medium")  # fallback voice if edge-tts is blocked
+WHISPER_DIR = ROOT / "assets" / "whisper"  # speech model for exact caption timing (~140 MB, not in git)
 PIPER_DIR = ROOT / "assets" / "piper"  # model downloaded here on first use (~60 MB, not in git)
 # Follow-for-more ending: added to videos that DON'T end on a question (questions get a comments prompt
 # instead), with probability OUTRO_CHANCE. One phrase picked at random ("|"-separated).
