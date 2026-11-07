@@ -216,6 +216,9 @@ def make(args: argparse.Namespace) -> None:
     visuals = args.visuals
     if visuals == "auto":  # AI scene images when Cloudflare is set up, otherwise stock footage
         visuals = "ai" if images.available() else "stock"
+        if visuals == "stock":
+            _warn("Used stock footage instead of AI images: CF_ACCOUNT_ID and CF_API_TOKEN are not set "
+                  "(add them to the GitHub repository secrets).")
     if visuals == "ai" and not images.available():
         sys.exit("--visuals ai needs CF_ACCOUNT_ID and CF_API_TOKEN in .env (see README).")
     source = provider()
