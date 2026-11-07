@@ -51,7 +51,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ACG_TZ: Asia/Manila
-      ACG_ART_STYLE: 3d   # AI image style: 3d or realistic
+      ACG_ART_STYLE: realistic   # AI image style: 3d or realistic
       # Scheduled LogExpense ads: set ADS_PAUSED to "false" to run them every Saturday from ADS_START_DATE.
       ADS_PAUSED: "false"
       ADS_START_DATE: "2026-10-17"

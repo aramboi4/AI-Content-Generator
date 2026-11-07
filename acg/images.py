@@ -24,7 +24,7 @@ ART_STYLES = {
     "realistic": _COMMON + ("Photorealistic cinematic photograph, natural light, realistic skin and textures, shot on "
                             "35mm film, shallow depth of field"),
 }
-ART_STYLE = ART_STYLES.get(os.getenv("ACG_ART_STYLE", "3d"), ART_STYLES["3d"])
+ART_STYLE = ART_STYLES.get(os.getenv("ACG_ART_STYLE", "realistic"), ART_STYLES["realistic"])
 
 
 def generate_checked(prompt: str, narration: str, out: Path, refs: list[Path] = (), seed: int = 7,
