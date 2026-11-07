@@ -1,13 +1,18 @@
 """Send each finished video + its captions to your phone via a free Telegram bot."""
+from __future__ import annotations
+
 import html
 import os
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import requests
 
 from .config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-from .writer import VideoPackage
+
+if TYPE_CHECKING:  # a broken writer import must not stop failure alerts from being sent
+    from .writer import VideoPackage
 
 MAX_VIDEO_BYTES = 49 * 1024 * 1024  # bot upload limit is 50 MB
 
