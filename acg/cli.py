@@ -82,6 +82,12 @@ def _warn(msg: str) -> None:
 def make(args: argparse.Namespace) -> None:
     if not config.GEMINI_API_KEY:
         sys.exit("GEMINI_API_KEY is not set - add it to .env (free key: https://aistudio.google.com/apikey)")
+    if args.niche == "auto":  # mornings: fun facts or feel-good science; evenings: stories, kind animals, traditions
+        from .writer import TOPIC_MIX
+        if args.style not in TOPIC_MIX:
+            sys.exit(f"--niche auto only works with --style {' or '.join(TOPIC_MIX)}.")
+        args.niche = random.choice(list(TOPIC_MIX[args.style]))
+    print(f"    topic area: {args.niche}")
 
     from .footage import fetch_clip, provider
     from . import history
@@ -365,7 +371,7 @@ def make(args: argparse.Namespace) -> None:
 
     guide = workdir / "POSTING_GUIDE.md"
     write_guide(pkg, guide, url)
-    history.add({"style": args.style, "topic": pkg.topic, "hook": pkg.scenes[0].narration,
+    history.add({"style": args.style, "niche": args.niche, "topic": pkg.topic, "hook": pkg.scenes[0].narration,
                  "outro": outro_text if args.style != "ad" else None, "title": pkg.youtube.title, "youtube": url,
                  "folder": workdir.name})
     if os.getenv("GITHUB_STEP_SUMMARY"):  # show captions on the GitHub Actions run page
@@ -417,7 +423,8 @@ def main() -> None:
     p = argparse.ArgumentParser(prog="acg", description="Faceless short-form video generator")
     sub = p.add_subparsers(dest="cmd", required=True)
     m = sub.add_parser("make", help="Generate one video + posting guide")
-    m.add_argument("--niche", required=True, help='e.g. "space facts", "stoic quotes", "money tips"')
+    m.add_argument("--niche", required=True, help='e.g. "space facts", "stoic quotes", "money tips", or "auto" '
+                   '(random from the style\'s topic mix)')
     m.add_argument("--style", default="facts", choices=["facts", "story", "ad"],
                    help="fun facts (fast, punchy), inspiring story (slower, narrative), or product ad (needs --brief)")
     m.add_argument("--brief", help="Product brief file for --style ad, e.g. ads/logexpense.md")

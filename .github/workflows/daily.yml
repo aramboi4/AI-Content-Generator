@@ -103,10 +103,12 @@ jobs:
             echo "niche=budgeting tips" >> "$GITHUB_OUTPUT"   # used for trend hashtags only
             echo "publish=12:00" >> "$GITHUB_OUTPUT"
           elif [ "$style" = story ]; then
-            echo "niche=short inspiring stories" >> "$GITHUB_OUTPUT"
+            # auto = random: inspiring stories, kind animals, or kindness traditions around the world
+            echo "niche=auto" >> "$GITHUB_OUTPUT"
             echo "publish=20:00" >> "$GITHUB_OUTPUT"
           else
-            echo "niche=fun facts" >> "$GITHUB_OUTPUT"
+            # auto = random: fun facts or feel-good science
+            echo "niche=auto" >> "$GITHUB_OUTPUT"
             echo "publish=08:00" >> "$GITHUB_OUTPUT"
           fi
           echo "upload=$upload" >> "$GITHUB_OUTPUT"

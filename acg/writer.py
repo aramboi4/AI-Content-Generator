@@ -258,6 +258,33 @@ HOOKS = {
 
 
 FORMATS = {"facts": "fun facts", "story": "short inspiring story", "ad": "short product ad"}
+# `--niche auto` picks one of these at random for each video (niche -> extra writing rules).
+TOPIC_MIX = {
+    "facts": {
+        "fun facts": "",
+        "feel-good science": (
+            "Feel-good science: real, well-established research on how kindness, gratitude, nature, friendship, "
+            "laughter, music, sleep or helping others lifts people's mood and wellbeing. Say 'studies suggest' or "
+            "'researchers found' instead of overclaiming. Keep to mood, stress, focus and social connection: no "
+            "claims about pain, immunity, disease, lifespan or other physical health, and no medical advice, "
+            "diagnoses, cures or supplements."),
+    },
+    "story": {
+        "short inspiring stories": "",
+        "kind animals": (
+            "Kind animals: a true, well-documented story or behavior of animals showing kindness, loyalty, care or "
+            "cooperation, toward each other or toward people (e.g. elephants comforting a grieving herd member). "
+            "The animal is the main character. Every detail must be documented; never invent events. "
+            "Prefer animals helping each other or adults: skip stories about injured or endangered children. "
+            "It's not a parable, so the topic must not start with 'Parable:'."),
+        "kindness traditions around the world": (
+            "Kindness traditions around the world: one real tradition of kindness from a specific culture, told as a "
+            "short story of how it works and why it matters (e.g. Filipino bayanihan, neighbors carrying a house "
+            "together; Italy's caffe sospeso, a coffee paid ahead for a stranger). About one time in three, pick a "
+            "tradition from the Philippines. Clothes, places and customs must be accurate; no stereotypes. "
+            "It's not a parable, so the topic must not start with 'Parable:'."),
+    },
+}
 PRIVACY_CHANCE = 0.4  # share of ads that include the brief's privacy reassurance
 # Words per second relative to the Microsoft voice; set to ~1.3 by the CLI when the faster Inworld voice
 # (Clive/Dennis) will be used, so videos come out near the target length for the actual voice.
@@ -333,6 +360,7 @@ Product brief (the only source of truth for claims):
 """ if style == "ad" else ""
     prompt = f"""Write a faceless short-form video (vertical, ~{target_seconds}s) for the niche: {niche}.
 Format: {FORMATS[style]}
+{TOPIC_MIX.get(style, {}).get(niche, "")}
 Topic: {topic or ("pick a fresh angle from the brief" if style == "ad" else "pick the best topic from the research below")}
 {"Already covered - pick a clearly different " + ("angle (different audience or problem or feature)" if style == "ad" else "topic (different subject, not just a reworded title)") + ": " + "; ".join(avoid) if avoid and not topic else ""}
 {"IMPORTANT: your previous draft retold a video we already posted. Do NOT write about any of these or anything close to them (same story, person or subject, even with a new title): " + "; ".join(not_again) if not_again else ""}
