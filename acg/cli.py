@@ -128,9 +128,26 @@ def make(args: argparse.Namespace) -> None:
     ending = args.ending if args.ending != "random" else random.choice(["question", "statement"])
     if args.style != "ad":
         print(f"    ending style: {ending}")
-    pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
-                        avoid=history.recent_topics(args.style), avoid_hooks=history.recent_hooks(),
-                        brief=brief, website=args.website or "", ending=ending)
+    past = history.recent_topics(args.style)
+    not_again: list[str] = []
+    for draft in range(3):
+        pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
+                            avoid=past, avoid_hooks=history.recent_hooks(),
+                            brief=brief, website=args.website or "", ending=ending, not_again=not_again)
+        if args.topic or args.style == "ad":
+            break
+        # The writer sometimes ignores the "already covered" list and retells a story under a new title.
+        try:
+            repeat = writer_mod.find_repeat(pkg, args.style, past)
+        except Exception as e:  # checker unavailable: keep the draft
+            print(f"    repeat check skipped ({type(e).__name__})")
+            break
+        if not repeat:
+            break
+        print(f'    "{pkg.topic}" repeats "{repeat}" - rewriting with a different topic')
+        not_again.append(repeat)
+        if draft == 2:
+            _warn(f'The script may repeat an earlier video ("{repeat}"); 3 drafts in a row did.')
     if writer_mod.LAST_WRITER != "Gemini":
         _warn(f"Gemini was unavailable, so the script was written by the backup: {writer_mod.LAST_WRITER}.")
     if args.style != "ad":  # the matching call to action is added below; drop any the model wrote itself

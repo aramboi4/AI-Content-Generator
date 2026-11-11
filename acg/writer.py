@@ -283,9 +283,35 @@ def strip_cta(text: str) -> str:
     return stripped or text
 
 
+class RepeatCheck(BaseModel):
+    repeat_of: str = Field(description="The past topic it repeats, copied exactly from the list; empty if it's new")
+
+
+def find_repeat(pkg: VideoPackage, style: str, past: list[str]) -> str:
+    """Returns the past topic this video retells (same story, person, event or parable, or the same facts subject),
+    even under a reworded title; "" if it's new. Raises if no writer is available."""
+    if not past:
+        return ""
+    same = ("the same story, person, event or parable (a retelling with different details or a new title still "
+            "counts, e.g. two videos about the doctor paid with a glass of milk)" if style == "story" else
+            "mostly the same subject (e.g. two videos about deep ocean trenches)")
+    story = " ".join(s.narration for s in pkg.scenes[:3])
+    prompt = (f'New video topic: "{pkg.topic}"\nOpening: "{story}"\n\nPast videos:\n'
+              + "\n".join(f"- {t}" for t in past)
+              + f"\n\nDoes the new video tell {same} as one of the past videos? Judge by what it's about, not the "
+                "wording. If yes, give that past topic exactly as written; if no, leave repeat_of empty.")
+    global LAST_WRITER
+    writer = LAST_WRITER  # keep reporting who wrote the script, not who did this check
+    try:
+        found = _structured(prompt, RepeatCheck).repeat_of.strip()
+    finally:
+        LAST_WRITER = writer
+    return found if found in past else next((t for t in past if found and found.lower() in t.lower()), "")
+
+
 def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts",
                   avoid: list[str] = (), avoid_hooks: list[str] = (), brief: str = "",
-                  website: str = "", ending: str = "statement") -> VideoPackage:
+                  website: str = "", ending: str = "statement", not_again: list[str] = ()) -> VideoPackage:
     """ending: "question" (last line asks viewers something) or "statement" (last line is the lesson/payoff)."""
     hook = random.choice(HOOKS[style])
     recent = "\n".join(f"  - {h}" for h in avoid_hooks)
@@ -309,6 +335,7 @@ Product brief (the only source of truth for claims):
 Format: {FORMATS[style]}
 Topic: {topic or ("pick a fresh angle from the brief" if style == "ad" else "pick the best topic from the research below")}
 {"Already covered - pick a clearly different " + ("angle (different audience or problem or feature)" if style == "ad" else "topic (different subject, not just a reworded title)") + ": " + "; ".join(avoid) if avoid and not topic else ""}
+{"IMPORTANT: your previous draft retold a video we already posted. Do NOT write about any of these or anything close to them (same story, person or subject, even with a new title): " + "; ".join(not_again) if not_again else ""}
 {product}
 Trend research (collected today):
 <research>
