@@ -1,0 +1,37 @@
+# Deletes finished workflow runs older than 2 days (logs and saved videos), every day.
+# The voice-model cache and history.json are not affected.
+name: Clean up old runs
+
+on:
+  schedule:
+    - cron: "37 3 * * *"   # 11:37 Manila, away from the video runs
+  workflow_dispatch:
+
+permissions:
+  actions: write   # needed to delete runs
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Delete runs older than 2 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          KEEP_DAYS: 2
+        run: |
+          cutoff=$(date -u -d "-${KEEP_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)
+          echo "Deleting finished runs created before $cutoff"
+          # Collect the IDs first, then delete, so deleting doesn't shift the pages being read.
+          ids=$(gh api --paginate "repos/$REPO/actions/runs?per_page=100" \
+                --jq ".workflow_runs[] | select(.status == \"completed\" and .created_at < \"$cutoff\") | .id")
+          deleted=0; failed=0
+          for id in $ids; do
+            if gh api -X DELETE "repos/$REPO/actions/runs/$id" --silent; then
+              deleted=$((deleted + 1))
+            else
+              failed=$((failed + 1))
+            fi
+          done
+          echo "Deleted $deleted run(s), $failed failed." | tee -a "$GITHUB_STEP_SUMMARY"

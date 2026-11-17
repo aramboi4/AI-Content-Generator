@@ -179,7 +179,7 @@ jobs:
           path: |
             output/*/video.mp4
             output/*/POSTING_GUIDE.md
-          retention-days: 14
+          retention-days: 3   # runs (and their videos) are deleted after 2 days by cleanup.yml
           if-no-files-found: ignore
 
       - name: Add download link to the run page
@@ -189,7 +189,7 @@ jobs:
         run: |
           {
             echo "## ⬇️ [Download video.mp4 + posting guide (zip)]($URL)"
-            echo "Available for 14 days. Unzip it, then post video.mp4 to TikTok and Instagram with the captions above."
+            echo "Available for 2 days. Unzip it, then post video.mp4 to TikTok and Instagram with the captions above."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Send the full-quality download link if the video was too big for Telegram
@@ -200,7 +200,7 @@ jobs:
           if [ -z "$TELEGRAM_BOT_TOKEN" ]; then exit 0; fi
           mb=$(cat output/.telegram_oversize)
           curl -s -o /dev/null "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}"             --data-urlencode "text=⬇️ Full-quality video (${mb} MB, too big for Telegram): ${URL}
-          Sign in to GitHub, download the zip, and unzip it to get video.mp4. Available for 14 days."
+          Sign in to GitHub, download the zip, and unzip it to get video.mp4. Available for 2 days."
 
       - name: Alert on Telegram if the run failed outside the video code
         if: failure()
