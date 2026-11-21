@@ -17,6 +17,8 @@ IMG_W, IMG_H = 768, 1344  # ~9:16, upscaled to 1080x1920 at render time
 PASS_SCORE = 7  # every review category must reach this, or the image is redrawn
 _COMMON = ("Believable, physically plausible scene at realistic scale with no exaggerated effects. Show only what is "
            "described: no extra people, hands or body parts; anyone described has correct anatomy. "
+           "People are adults (a young person is in their late teens or early 20s) unless the prompt explicitly "
+           "describes a child, kid or baby. "
            "No text, letters, signs or logos anywhere, no watermark. ")
 ART_STYLES = {
     "3d": _COMMON + ("3D animated movie style, Pixar-like, soft cinematic lighting, expressive cartoon proportions, "

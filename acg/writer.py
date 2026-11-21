@@ -147,8 +147,11 @@ class SocialPost(BaseModel):
 class VideoPackage(BaseModel):
     topic: str
     character: str = Field(description=(
-        "Visual description of the main recurring character (age, hair, face, outfit colors), 1-2 sentences. "
-        "For fact videos with no character, describe a friendly narrator character (e.g. a curious kid explorer)."))
+        "Visual description of the main recurring character (exact age, hair, face, outfit colors), 1-2 sentences. "
+        "Always state a number or range for the age (e.g. 'a man in his early 20s'). A 'young' person is a late teen "
+        "or early-20s adult, never a child; make them a child or baby only when the story explicitly says so. "
+        "For fact videos with no character, describe a friendly narrator character (e.g. a curious woman in her "
+        "early 20s)."))
     scenes: list[Scene]
     youtube: YouTubePost
     tiktok: SocialPost
@@ -457,11 +460,15 @@ Script rules:
   scenes: close-up, medium, wide. The art style is added automatically - don't mention style. Never ask
   for signs, labels, writing or anything with lettering, because image models garble text. Name the country or
   region in the prompt whenever the story has one, so buildings and clothes fit. Whenever the main character appears, write exactly "the character" (never a name or a
-  description; their look is supplied separately). Describe anyone else in full each time. For fun facts,
+  description; their look is supplied separately). Describe anyone else in full each time, always with an
+  explicit age (e.g. "a woman in her early 20s", "a man in his 60s"). AGES: a "young" person (young carpenter, young
+  nurse, young man/woman) is a late teen or early-20s adult - never a child. Show a child, kid or baby ONLY when the
+  narration explicitly says so (child, kid, boy/girl of school age, baby, toddler, or an age under 16), and keep
+  that same age in every scene; otherwise everyone shown is an adult. For fun facts,
   show the fact's real subject; only use the character when the line is about a person.
   Show the line's main EVENT and its emotional meaning, not just its setting or background. When a line has
   several ideas, draw the human moment that matters: for "famine forced him to drop out of school", show the sad
-  boy looking back at his school from outside while classmates in uniform go in, with dry fields around, not
+  teenager looking back at his school from outside while classmates in uniform go in, with dry fields around, not
   just dry land. Use concrete visual clues (school, uniform, books, classmates) to make the event obvious.
   Keep every picture believable: realistic scale and physics (a small spark stays small, never lightning, unless
   the narration really says so), calm natural poses with hands clearly holding things, and accurate period,
@@ -581,7 +588,9 @@ def check_image(narration: str, image: bytes, plan: str = "") -> ImageCheck:
         "line about leaving school) scores 5 or less. In `problem`, keep to the plan: say what to add or correct, "
         "never suggest a different idea. Any visible lettering or sign scores believable 4 or less (tell it to "
         "remove the text). Buildings, clothes and objects that don't fit the story's country or period score "
-        "believable 6 or less.\n"
+        "believable 6 or less. A child or baby shown when neither the narration nor the plan explicitly mentions a "
+        "child, kid, baby or an age under 16 scores believable 3 or less (tell it to show an adult in their early "
+        "20s, or the age the plan states).\n"
         "Review it strictly. The art style itself is fine. Score how well it shows that line (subject, action, "
         "quantity, place, period); a picture that shows only the setting and misses the line's main event scores 4 "
         "or less; whether it's believable (realistic scale, physics and objects; no exaggerated "
