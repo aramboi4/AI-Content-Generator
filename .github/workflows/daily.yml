@@ -1,13 +1,13 @@
 # Makes and uploads two Shorts a day, plus a LogExpense ad every Saturday.
-# Main runs are started on time by cron-job.org (07:10 and 19:10 Manila, Saturday ad 09:30; see README
-# "On-time runs") and scheduled on YouTube for 08:10 / 20:10 (ad 12:00); a run that finishes too late posts
+# Main runs are started on time by cron-job.org (06:40 and 18:40 Manila, Saturday ad 09:30; see README
+# "On-time runs") and scheduled on YouTube for 08:00 / 20:00 (ad 12:00); a run that finishes too late posts
 # right away. GitHub's own schedules below start 2-7 hours late, so they are only backups: every automatic
 # run does nothing if that video was already uploaded.
 name: Daily videos
 
 on:
   schedule:
-    # Backups for the 07:10 / 19:10 on-time runs (they only act if the video is still missing).
+    # Backups for the 06:40 / 18:40 on-time runs (they only act if the video is still missing).
     - cron: "13 1 * * *"   # 09:13 Manila -> fun facts backup
     - cron: "13 4 * * *"   # 12:13 Manila -> fun facts second backup
     - cron: "13 13 * * *"  # 21:13 Manila -> story backup
@@ -132,11 +132,11 @@ jobs:
           elif [ "$style" = story ]; then
             # auto = random: inspiring stories, kind animals, or kindness traditions around the world
             echo "niche=auto" >> "$GITHUB_OUTPUT"
-            echo "publish=20:10" >> "$GITHUB_OUTPUT"
+            echo "publish=20:00" >> "$GITHUB_OUTPUT"
           else
             # auto = random: fun facts or feel-good science
             echo "niche=auto" >> "$GITHUB_OUTPUT"
-            echo "publish=08:10" >> "$GITHUB_OUTPUT"
+            echo "publish=08:00" >> "$GITHUB_OUTPUT"
           fi
           echo "upload=$upload" >> "$GITHUB_OUTPUT"
           echo "style=$style" >> "$GITHUB_OUTPUT"
