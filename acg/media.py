@@ -45,7 +45,81 @@ def render_segment(clip: Path | None, duration: float, out: Path, zoom_out: bool
           "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)])
 
 
-URL_COLOR = "#FFD84D"  # highlight for web addresses on cards
+def render_browser_outro(page: Path, url: str, duration: float, out: Path) -> None:
+    """Ad ending: a browser window where `url` is typed into the address bar, the page loads, and the landing
+    page (`page`, a phone screenshot) appears and scrolls gently. Leaves room below for the website card."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+    bx0, by0, bw, bh, bar_h, r = 90, 150, 900, 1330, 132, 44  # browser window and its top bar
+    shot = Image.open(page).convert("RGB")
+    shot = shot.resize((bw, round(shot.height * bw / shot.width)), Image.Resampling.LANCZOS)
+    view_h = bh - bar_h
+    if shot.height < view_h:  # short screenshot: pad with the page's own background colour
+        padded = Image.new("RGB", (bw, view_h), shot.getpixel((5, shot.height - 5)))
+        padded.paste(shot, (0, 0))
+        shot = padded
+    max_scroll = min(260, shot.height - view_h)
+
+    # Background: the page itself, blurred and dimmed; plus the window's shadow.
+    bg = shot.resize((WIDTH, round(shot.height * WIDTH / bw))).crop((0, 0, WIDTH, HEIGHT))
+    bg = Image.blend(bg.filter(ImageFilter.GaussianBlur(28)), Image.new("RGB", (WIDTH, HEIGHT), (18, 16, 28)), 0.55)
+    shadow = Image.new("L", (WIDTH, HEIGHT), 0)
+    ImageDraw.Draw(shadow).rounded_rectangle([bx0, by0 + 16, bx0 + bw, by0 + bh + 16], radius=r, fill=150)
+    bg.paste((0, 0, 0), (0, 0), shadow.filter(ImageFilter.GaussianBlur(24)))
+    window_mask = Image.new("L", (bw, bh), 0)
+    ImageDraw.Draw(window_mask).rounded_rectangle([0, 0, bw - 1, bh - 1], radius=r, fill=255)
+
+    font = ImageFont.truetype(str(FONTS_DIR / "Inter.ttf"), 46)
+    font.set_variation_by_name("Regular")
+    pill = (28, 30, bw - 28, bar_h - 30)  # address field inside the top bar
+    tx, ty = pill[0] + 74, (pill[1] + pill[3]) / 2
+
+    type_start, per_char = 0.35, 0.07
+    typed_at = type_start + per_char * len(url)
+    load_start, load_end = typed_at + 0.25, typed_at + 0.75
+    shown_at = load_end - 0.15
+    ease = lambda p: p * p * (3 - 2 * p)  # noqa: E731 - smooth start and stop
+
+    proc = subprocess.Popen(
+        [FFMPEG, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{WIDTH}x{HEIGHT}",
+         "-r", str(FPS), "-i", "-", "-vf",
+         "setsar=1,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709,format=yuv420p",
+         "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)],
+        stdin=subprocess.PIPE)
+    for n in range(round(duration * FPS)):
+        t = n / FPS
+        win = Image.new("RGB", (bw, bh), "white")
+        if t >= shown_at:  # the landing page, fading in, then scrolling slowly
+            p = min(1.0, max(0.0, (t - shown_at - 0.3) / max(duration - shown_at - 0.6, 0.1)))
+            y = round(max_scroll * ease(p))
+            view = shot.crop((0, y, bw, y + view_h))
+            fade = min(1.0, (t - shown_at) / 0.25)
+            win.paste(Image.blend(Image.new("RGB", view.size, "white"), view, fade), (0, bar_h))
+        d = ImageDraw.Draw(win)
+        d.rectangle([0, 0, bw, bar_h], fill="white")
+        d.line([0, bar_h - 1, bw, bar_h - 1], fill=(225, 227, 230), width=2)
+        d.rounded_rectangle(pill, radius=(pill[3] - pill[1]) // 2, fill=(236, 238, 241))
+        lx, ly = pill[0] + 30, ty  # small padlock
+        d.rounded_rectangle([lx, ly - 4, lx + 22, ly + 16], radius=4, fill=(95, 99, 104))
+        d.arc([lx + 4, ly - 16, lx + 18, ly + 2], 180, 360, fill=(95, 99, 104), width=4)
+        chars = len(url) if t >= typed_at else max(0, int((t - type_start) / per_char))
+        text = url[:chars]
+        d.text((tx, ty), text, font=font, fill=(32, 33, 36), anchor="lm")
+        if t < load_start and int(t * 2.5) % 2 == 0:  # blinking cursor while typing
+            cx = tx + d.textlength(text, font=font) + 4
+            d.line([cx, ty - 26, cx, ty + 26], fill=(26, 115, 232), width=3)
+        if load_start <= t < load_end + 0.15:  # blue loading bar under the address bar
+            p = min(1.0, (t - load_start) / (load_end - load_start))
+            d.rectangle([0, bar_h - 5, round(bw * ease(p)), bar_h], fill=(26, 115, 232))
+        frame = bg.copy()
+        frame.paste(win, (bx0, by0), window_mask)
+        proc.stdin.write(frame.tobytes())
+    proc.stdin.close()
+    if proc.wait():
+        raise RuntimeError("FFmpeg failed while rendering the browser ending")
+
+
+URL_HIGHLIGHT = (229, 32, 45)  # bold red box behind web addresses on cards
 
 
 def _is_url(word: str) -> bool:
@@ -233,7 +307,7 @@ def render_card(text: str, out: Path, style: str = "classic", center_y: int | No
     ascent, descent = font.getmetrics()
     line_h = ascent + descent
     box_w = int(max(draw.textlength(l, font=font) for l in lines)) + 2 * pad_x
-    box_h = len(lines) * line_h + (len(lines) - 1) * gap + 2 * pad_y
+    box_h = len(lines) * line_h + (len(lines) - 1) * gap + 2 * pad_y + (14 if _is_url(lines[-1]) else 0)  # room under a red URL box
     x0 = (WIDTH - box_w) // 2
     y0 = (center_y - box_h // 2) if center_y is not None else top
     img = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
@@ -243,9 +317,12 @@ def render_card(text: str, out: Path, style: str = "classic", center_y: int | No
     space = d.textlength(" ", font=font)
     for l in lines:
         x = (WIDTH - d.textlength(l, font=font)) / 2
-        for word in l.split(" "):  # web addresses are highlighted in yellow
-            d.text((x, y), word, font=font, fill=URL_COLOR if _is_url(word) else "white")
-            x += d.textlength(word, font=font) + space
+        for word in l.split(" "):  # web addresses get a bold red highlight behind them
+            ww = d.textlength(word, font=font)
+            if _is_url(word):
+                d.rounded_rectangle([x - 18, y - 4, x + ww + 18, y + line_h - 2], radius=16, fill=URL_HIGHLIGHT)
+            d.text((x, y), word, font=font, fill="white")
+            x += ww + space
         y += line_h + gap
     img.save(out)
     return out

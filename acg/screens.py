@@ -45,12 +45,12 @@ def capture(website: str, out_dir: Path) -> list[Path]:
         return saved
 
 
-def all_screens(website: str, out_dir: Path) -> list[Path]:
-    """Everything a phone scene can show, in random order: the live landing page plus the in-app screenshots."""
+def all_screens(site_shots: list[Path]) -> list[Path]:
+    """Everything a phone scene can show, in random order: the landing page shots plus the in-app screenshots."""
     import random
 
     app = [p for p in sorted(APP.glob("*")) if p.suffix.lower() in IMAGE_TYPES]
-    screens = capture(website, out_dir) + app
+    screens = list(site_shots) + app
     random.shuffle(screens)
     return screens
 

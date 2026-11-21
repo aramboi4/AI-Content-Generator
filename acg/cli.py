@@ -83,7 +83,7 @@ def _publish_at(args: argparse.Namespace) -> str | None:
     return _next_publish_time(args.publish_next) if args.publish_next else args.publish_at
 
 
-AD_LINK_SECONDS = 4.5  # ads end with the website card on screen for at least this long
+AD_LINK_SECONDS = 5.0  # ads end with the browser scene + website card on screen for at least this long
 
 # Current step and non-fatal problems, reported to Telegram by main().
 STATE: dict = {"stage": "setup", "warnings": []}
@@ -108,7 +108,7 @@ def make(args: argparse.Namespace) -> None:
     from . import history
     from .guide import write_guide
     from .config import HEIGHT
-    from .media import (card_top, concat_audio, final_render, logo_badge, render_card, render_segment,
+    from .media import (card_top, concat_audio, final_render, logo_badge, render_browser_outro, render_card, render_segment,
                         render_watermark, write_captions)
     from .trends import youtube_trends
     from .voice import synthesize_scenes
@@ -184,7 +184,8 @@ def make(args: argparse.Namespace) -> None:
         from .writer import strip_cta
         pkg.scenes[-1].narration = strip_cta(pkg.scenes[-1].narration)
     if args.style == "ad" and args.website.lower() not in pkg.youtube.description.lower():
-        pkg.youtube.description = f"Try it free: https://{args.website}\n\n{pkg.youtube.description}"
+        lead = "Subukan nang libre" if args.language == "tl" else "Try it free"
+        pkg.youtube.description = f"{lead}: https://{args.website}\n\n{pkg.youtube.description}"
 
     workdir = config.OUTPUT_DIR / f"{datetime.now():%Y%m%d-%H%M%S}-{_slug(pkg.topic)}"
     workdir.mkdir(parents=True, exist_ok=True)
@@ -272,11 +273,13 @@ def make(args: argparse.Namespace) -> None:
         sys.exit("--visuals ai needs CF_ACCOUNT_ID and CF_API_TOKEN in .env (see README).")
     source = provider()
     char_ref = None
-    app_screens, placed = [], 0
-    if visuals == "ai" and args.style == "ad" and args.website and any(s.shows_app for s in pkg.scenes):
-        from .screens import all_screens, place_on_phone
-        app_screens = all_screens(args.website, workdir)
-        print(f"    {len(app_screens)} app screen(s) ready for the phone scenes")
+    app_screens, placed, site_shots = [], 0, []
+    if args.style == "ad" and args.website:  # the landing page: for the browser ending and the phone scenes
+        from .screens import all_screens, capture, place_on_phone
+        site_shots = capture(args.website, workdir)
+        if visuals == "ai" and any(s.shows_app for s in pkg.scenes):
+            app_screens = all_screens(site_shots)
+            print(f"    {len(app_screens)} app screen(s) ready for the phone scenes")
     if visuals == "ai":
         print("4/6 Generating AI scene images and rendering scenes...")
         try:  # a head-and-shoulders reference keeps the face and clothes without pinning the pose
@@ -359,7 +362,16 @@ def make(args: argparse.Namespace) -> None:
     if outro:  # call to action over the last clip, shown as a text card instead of captions
         outro_at = t
         seg = workdir / "seg_outro.mp4"
-        render_segment(last_clip, outro[0]["duration"] + 0.6, seg, zoom_out=True)
+        browser_done = False
+        if args.style == "ad" and site_shots:  # the website being typed into a browser and opening
+            try:
+                render_browser_outro(site_shots[0], args.website.lower(), outro[0]["duration"] + 0.6, seg)
+                browser_done = True
+            except Exception as e:
+                _warn(f"The browser ending couldn't be made ({type(e).__name__}: {str(e)[:100]}) - "
+                      "the last picture was used instead.")
+        if not browser_done:
+            render_segment(last_clip, outro[0]["duration"] + 0.6, seg, zoom_out=True)
         segments.append(seg)
         t += outro[0]["duration"] + 0.6
 
@@ -379,7 +391,9 @@ def make(args: argparse.Namespace) -> None:
     if outro_at is not None:
         is_ad = args.style == "ad"  # the ad's website card is all lowercase, e.g. "subukan nang libre sa logexpense.site"
         card = render_card(outro_text.lower() if is_ad else outro_text, workdir / "card_outro.png",
-                           args.caption_style, center_y=HEIGHT // 2 + 120, font_size=72 if is_ad else 80,
+                           # ads: below the browser window; otherwise mid-screen under the logo
+                           args.caption_style, center_y=1690 if is_ad else HEIGHT // 2 + 120,
+                           font_size=72 if is_ad else 80,
                            max_width=1000, keep_case=is_ad)
         if logo.exists() and branded:  # channel logo pops in (CapCut-style) above the follow-for-more box
             badge = logo_badge(logo, workdir / "card_logo.png")

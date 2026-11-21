@@ -37,7 +37,7 @@ PH_POSTING_GUIDE = """🇵🇭 <b>Before posting this ad (to reach PH viewers)</
 5. Promoting your own app needs no "Paid partnership" label.
 
 <b>Both apps</b>
-• logexpense.site must be the link in your bio (captions say "Link in bio").
+• logexpense.site must be the link in your bio (captions say "Link sa bio").
 • Reply to the first comments within the first hour - it helps the post spread.
 • Paid "Promote"/"Boost" is the only way to pick a country - skip it until you're monetized."""
 

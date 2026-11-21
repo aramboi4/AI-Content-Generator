@@ -373,7 +373,9 @@ def polish_filipino(pkg: VideoPackage, brief: str = "") -> int:
         "You are a native Filipino copywriter from Metro Manila who writes viral TikTok ads. Review this ad copy. "
         "Rewrite any phrase that sounds like Google Translate, textbook or formal (malalim) Tagalog, or awkward, "
         "into what a Filipino would actually say: natural everyday Tagalog with common English words mixed in "
-        "(Taglish). Leave lines that already sound natural unchanged.\n"
+        "(Taglish). The TikTok and Instagram captions must be Filipino too: rewrite any English-only sentence "
+        "in them (e.g. \"Free to start! Link in bio.\" -> \"Libreng magsimula! Link sa bio.\"). Leave lines "
+        "that already sound natural unchanged.\n"
         "Rules: keep the meaning, every claim and every peso amount; add no new claims; keep each line about the "
         "same length; keep brand names, the website and hashtags exactly as they are; keep the YouTube title "
         "ending with #Shorts; no emojis in on_screen_title; return exactly the same number of narration lines in "
@@ -418,10 +420,14 @@ Product brief (the only source of truth for claims):
     privacy = ("- Include the privacy message from the brief as one short scene near the end, before the payoff.\n"
                if style == "ad" and random.random() < PRIVACY_CHANCE else "")
     ad_copy = f"""{privacy}- Follow the brief's Target audience section (situations, currency, hashtags).
-- This is an ad for the product's own channel: in every caption and description, say it's free to start.
+- This is an ad for the product's own channel: in every caption and description, say it's free to start
+  ({'"Libreng magsimula" or "Libre lang magsimula"' if language == "tl" else '"free to start"'}).
 - YouTube description: first line must include {website}.
-- TikTok/Instagram captions can't have clickable links: end the caption text with "Link in bio" and
-  mention the site name ({website}) once.
+- TikTok/Instagram captions can't have clickable links: end the caption text with
+  {'"Link sa bio"' if language == "tl" else '"Link in bio"'} and mention the site name ({website}) once.
+{'''- The TikTok caption, Instagram caption and YouTube description are written in the same natural Filipino
+  (Taglish) as the narration: no English-only sentences. The Instagram call to action is Filipino too
+  (e.g. "I-save mo 'to para di mo makalimutan!", "I-share sa kasama mo sa bahay!").''' if language == "tl" else ""}
 """ if style == "ad" else ""
     prompt = f"""Write a faceless short-form video (vertical, ~{target_seconds}s) for the niche: {niche}.
 Format: {FORMATS[style]}
