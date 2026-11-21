@@ -13,6 +13,9 @@ on:
     - cron: "13 20 * * *"  # 04:13 Manila -> fun facts retry
     - cron: "13 8 * * *"   # 16:13 Manila -> story retry
     - cron: "13 0 * * 6"   # Saturday 08:13 Manila -> ad retry
+    # Extra one-off ads: Sunday 05:13 Manila (+ retry 08:13), only on the dates in EXTRA_AD_DATES.
+    - cron: "13 21 * * 6"
+    - cron: "13 0 * * 0"
   workflow_dispatch:
     inputs:
       style:
@@ -55,6 +58,8 @@ jobs:
       # Scheduled LogExpense ads: set ADS_PAUSED to "false" to run them every Saturday from ADS_START_DATE.
       ADS_PAUSED: "false"
       ADS_START_DATE: "2026-10-17"
+      # One-off extra ads on a Sunday (Manila dates, space-separated), on top of the Saturday ads.
+      EXTRA_AD_DATES: "2026-11-22"
       IMAGEIO_FFMPEG_EXE: /usr/bin/ffmpeg
       PYTHONIOENCODING: utf-8
     steps:
@@ -63,7 +68,7 @@ jobs:
       - name: Pick video type
         id: plan
         run: |
-          retry=false; retry_at=""
+          retry=false; retry_at=""; extra=false
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
           else
@@ -75,7 +80,13 @@ jobs:
               "13 8 * * *")  style=story; retry=true ;;
               "13 21 * * 5") style=ad; retry_at="8:13 AM" ;;
               "13 0 * * 6")  style=ad; retry=true ;;
+              "13 21 * * 6") style=ad; extra=true; retry_at="8:13 AM" ;;
+              "13 0 * * 0")  style=ad; extra=true; retry=true ;;
             esac
+          fi
+          if [ "$extra" = true ] && [[ " $EXTRA_AD_DATES " != *" $(TZ=Asia/Manila date +%F) "* ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "No extra ad scheduled for today (EXTRA_AD_DATES: ${EXTRA_AD_DATES:-none}) - skipping." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
           echo "retry=$retry" >> "$GITHUB_OUTPUT"
           if [ -n "$retry_at" ]; then
