@@ -16,8 +16,16 @@ on:
     # Extra one-off ads: Sunday 05:13 Manila (+ retry 08:13), only on the dates in EXTRA_AD_DATES.
     - cron: "13 21 * * 6"
     - cron: "13 0 * * 0"
+  # On-time runs: an outside cron service (cron-job.org) calls GitHub's API with run=facts/story/ad at the
+  # exact time (see README "On-time runs"). The schedules above stay as backups; every automatic run skips
+  # itself if that video was already uploaded in the last 9 hours, so nothing is made twice.
   workflow_dispatch:
     inputs:
+      run:
+        description: "Leave on manual. (facts/story/ad = an automatic run, used by the outside cron service)"
+        type: choice
+        options: [manual, facts, story, ad]
+        default: manual
       style:
         description: "facts, story, or ad (LogExpense)"
         type: choice
@@ -68,11 +76,16 @@ jobs:
       - name: Pick video type
         id: plan
         run: |
-          retry=false; retry_at=""; extra=false
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          retry=false; retry_at=""; extra=false; auto=false
+          run_input="${{ inputs.run }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "$run_input" ] && [ "$run_input" != manual ]; then
+            # Started on time by the outside cron service: behaves like a scheduled run.
+            style="$run_input"; upload=true; auto=true
+            echo "ACG_RETRY_NOTE=GitHub's backup runs will try again within a few hours." >> "$GITHUB_ENV"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
           else
-            upload=true
+            upload=true; auto=true
             case "${{ github.event.schedule }}" in
               "13 17 * * *") style=facts; retry_at="4:13 AM" ;;
               "13 20 * * *") style=facts; retry=true ;;
@@ -92,8 +105,9 @@ jobs:
           if [ -n "$retry_at" ]; then
             echo "ACG_RETRY_NOTE=A retry will run automatically at $retry_at (Manila)." >> "$GITHUB_ENV"
           fi
-          if [ "$retry" = true ]; then
-            # Retry runs only make a video if the normal run (2 hours earlier) didn't upload one.
+          if [ "$auto" = true ]; then
+            # Automatic runs (on-time trigger, GitHub schedule or retry) only make a video if no other run has
+            # uploaded this one in the last 9 hours.
             if python3 - "$style" <<'PY'
           import json, sys
           from datetime import datetime, timedelta, timezone
@@ -105,9 +119,9 @@ jobs:
           PY
             then
               echo "skip=true" >> "$GITHUB_OUTPUT"
-              echo "The $style video was already uploaded by the normal run - no retry needed." | tee -a "$GITHUB_STEP_SUMMARY"
+              echo "Today's $style video was already uploaded by another run - nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
             else
-              echo "No $style video was uploaded by the normal run - retrying now." | tee -a "$GITHUB_STEP_SUMMARY"
+              echo "No $style video uploaded yet - making it now." | tee -a "$GITHUB_STEP_SUMMARY"
             fi
           fi
           if [ "$style" = ad ]; then
@@ -125,7 +139,7 @@ jobs:
           echo "upload=$upload" >> "$GITHUB_OUTPUT"
           echo "style=$style" >> "$GITHUB_OUTPUT"
           today=$(TZ=Asia/Manila date +%F)
-          if [ "$style" = ad ] && [ "${{ github.event_name }}" = "schedule" ] && { [ "$ADS_PAUSED" = "true" ] || [[ "$today" < "$ADS_START_DATE" ]]; }; then
+          if [ "$style" = ad ] && [ "$auto" = true ] && { [ "$ADS_PAUSED" = "true" ] || [[ "$today" < "$ADS_START_DATE" ]]; }; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "LogExpense ads are paused (ADS_PAUSED=$ADS_PAUSED, start date $ADS_START_DATE) - skipping this run." | tee -a "$GITHUB_STEP_SUMMARY"
           fi

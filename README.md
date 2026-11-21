@@ -70,7 +70,7 @@ To change the logo, replace `assets/brand/logo_original.png` and ask Claude to r
 | 13:13 (retry 16:13) | inspiring story | 20:00 |
 | Saturday 05:13 (retry 08:13) | LogExpense ad (~30s) (pause with `ADS_PAUSED: "true"` in the workflow) | Saturday 12:00 |
 
-GitHub starts scheduled runs 2-7 hours late, so runs start about 7 hours before the slot. A run that finishes before the slot schedules the YouTube video for the slot; a run that's later than that posts it right away (never the next day). The retry only makes a video if the first run didn't upload one. Telegram shows "📅 Post on TikTok/Instagram: <day, time>" for every video. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 2 days, then deleted by `cleanup.yml`).
+GitHub starts scheduled runs 2-7 hours late, so these start about 7 hours before the slot and act as backups for the on-time runs below. A run that finishes before the slot schedules the YouTube video for the slot; a run that's later than that posts it right away (never the next day). The retry only makes a video if the first run didn't upload one. Telegram shows "📅 Post on TikTok/Instagram: <day, time>" for every video. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 2 days, then deleted by `cleanup.yml`).
 
 Setup: GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**, add:
 
@@ -79,7 +79,30 @@ Setup: GitHub repo → **Settings → Secrets and variables → Actions → New 
 
 Before creating `token.json`, set the OAuth app to **In production** (Google Cloud → Google Auth Platform → Audience → **Publish app**). Apps left in *Testing* get refresh tokens that expire after 7 days, which would break the daily uploads. No verification is needed for your own channel.
 
-To test without waiting: Actions → **Daily videos** → **Run workflow** (choose style, upload on/off).
+To test without waiting: Actions → **Daily videos** → **Run workflow** (leave *run* on `manual`, choose style, upload on/off).
+
+### On-time runs (cron-job.org, free)
+
+GitHub's own schedules start late, so an outside cron service starts the runs at the exact time by calling GitHub's API. The GitHub schedules above stay as backups. Every automatic run first checks `history.json` and does nothing if that video was already uploaded in the last 9 hours, so a video is never made twice.
+
+1. **GitHub token:** github.com → your photo → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**. Name it `cron-job`, set an expiration, **Repository access → Only select repositories → AI-Content-Generator**, **Permissions → Repository permissions → Actions: Read and write**. Copy the token.
+2. **cron-job.org:** sign up free, then **Create cronjob** for each row below:
+   - **URL:** `https://api.github.com/repos/aramboi4/AI-Content-Generator/actions/workflows/daily.yml/dispatches`
+   - **Schedule:** the time below, time zone **Asia/Manila**
+   - **Advanced → Request method:** `POST`
+   - **Advanced → Headers:** `Authorization: Bearer <your token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`
+   - **Advanced → Request body:** `{"ref":"main","inputs":{"run":"facts"}}` (or `story` / `ad`)
+
+| Job | Time (Manila) | Body `run` | Goes public |
+|---|---|---|---|
+| Fun facts | every day 05:30 | `facts` | 08:00 |
+| Fun facts retry | every day 06:45 | `facts` | 08:00 |
+| Story | every day 17:30 | `story` | 20:00 |
+| Story retry | every day 18:45 | `story` | 20:00 |
+| LogExpense ad | Saturday 09:30 | `ad` | 12:00 |
+| LogExpense ad retry | Saturday 10:45 | `ad` | 12:00 |
+
+A successful call returns status `204` (or `200`) and a new run appears under **Actions**. The retry jobs cost nothing when the first run worked: they see the upload and stop within a minute.
 
 Videos that end on a statement (e.g. a story's lesson) get a ~5s follow-for-more ending, spoken and shown on screen, picked from 12 variations. Videos that end on a question stop there instead (sometimes adding a comments prompt), with no follow ending. The phrases come from 12 variations ("Follow for more videos like this!", "Hit follow so you don't miss the next one!", "Enjoyed this? Follow for more!", ...). An ending isn't reused until at least 6 other endings have been used. Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
 
