@@ -1,5 +1,5 @@
 # Makes and uploads two Shorts a day, plus a LogExpense ad every Saturday.
-# Main runs are started on time by cron-job.org (06:40 and 18:40 Manila, Saturday ad 09:30; see README
+# Main runs are started on time by cron-job.org (06:20 and 18:20 Manila, Saturday ad 09:30; see README
 # "On-time runs") and scheduled on YouTube for 08:00 / 20:00 (ad 12:00); a run that finishes too late posts
 # right away. GitHub's own schedules below start 2-7 hours late, so they are only backups: every automatic
 # run does nothing if that video was already uploaded.
@@ -7,7 +7,7 @@ name: Daily videos
 
 on:
   schedule:
-    # Backups for the 06:40 / 18:40 on-time runs (they only act if the video is still missing).
+    # Backups for the 06:20 / 18:20 on-time runs (they only act if the video is still missing).
     - cron: "13 1 * * *"   # 09:13 Manila -> fun facts backup
     - cron: "13 4 * * *"   # 12:13 Manila -> fun facts second backup
     - cron: "13 13 * * *"  # 21:13 Manila -> story backup
