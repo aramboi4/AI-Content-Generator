@@ -1,18 +1,19 @@
 # Makes and uploads two Shorts a day, plus a LogExpense ad every Saturday.
-# GitHub starts scheduled runs 2-7 hours late (especially on the hour), so runs start ~7h before
-# the posting slot at an off-peak minute. On-time runs schedule YouTube for the slot; late runs post
-# right away instead of waiting a day. A retry 3h after each run makes the video if it's still missing.
+# Main runs are started on time by cron-job.org (08:10 and 20:10 Manila, Saturday ad 09:30; see README
+# "On-time runs"); videos post as soon as they're ready. GitHub's own schedules below start 2-7 hours late,
+# so they are only backups: every automatic run does nothing if that video was already uploaded.
 name: Daily videos
 
 on:
   schedule:
-    - cron: "13 17 * * *"  # 01:13 Manila -> fun facts for 08:00
-    - cron: "13 5 * * *"   # 13:13 Manila -> inspiring story for 20:00
-    - cron: "13 21 * * 5"  # Saturday 05:13 Manila -> LogExpense ad for 12:00
-    # Retries, 3 hours later: only make a video if the normal run hasn't uploaded one.
-    - cron: "13 20 * * *"  # 04:13 Manila -> fun facts retry
-    - cron: "13 8 * * *"   # 16:13 Manila -> story retry
-    - cron: "13 0 * * 6"   # Saturday 08:13 Manila -> ad retry
+    # Backups for the 08:10 / 20:10 on-time runs (they only act if the video is still missing).
+    - cron: "13 1 * * *"   # 09:13 Manila -> fun facts backup
+    - cron: "13 4 * * *"   # 12:13 Manila -> fun facts second backup
+    - cron: "13 13 * * *"  # 21:13 Manila -> story backup
+    - cron: "13 15 * * *"  # 23:13 Manila -> story second backup
+    # Saturday ad: GitHub run 05:13 (retry 08:13) plus the 09:30 on-time run; goes public at 12:00.
+    - cron: "13 21 * * 5"
+    - cron: "13 0 * * 6"
     # Extra one-off ads: Sunday 05:13 Manila (+ retry 08:13), only on the dates in EXTRA_AD_DATES.
     - cron: "13 21 * * 6"
     - cron: "13 0 * * 0"
@@ -87,10 +88,10 @@ jobs:
           else
             upload=true; auto=true
             case "${{ github.event.schedule }}" in
-              "13 17 * * *") style=facts; retry_at="4:13 AM" ;;
-              "13 20 * * *") style=facts; retry=true ;;
-              "13 5 * * *")  style=story; retry_at="4:13 PM" ;;
-              "13 8 * * *")  style=story; retry=true ;;
+              "13 1 * * *")  style=facts; retry_at="12:13 PM" ;;
+              "13 4 * * *")  style=facts; retry=true ;;
+              "13 13 * * *") style=story; retry_at="11:13 PM" ;;
+              "13 15 * * *") style=story; retry=true ;;
               "13 21 * * 5") style=ad; retry_at="8:13 AM" ;;
               "13 0 * * 6")  style=ad; retry=true ;;
               "13 21 * * 6") style=ad; extra=true; retry_at="8:13 AM" ;;
