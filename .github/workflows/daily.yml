@@ -1,26 +1,11 @@
 # Makes and uploads two Shorts a day, plus a LogExpense ad every Saturday.
-# Main runs are started on time by cron-job.org (06:20 and 18:20 Manila, Saturday ad 09:30; see README
-# "On-time runs") and scheduled on YouTube for 08:00 / 20:00 (ad 12:00); a run that finishes too late posts
-# right away. GitHub's own schedules below start 2-7 hours late, so they are only backups: every automatic
-# run does nothing if that video was already uploaded.
+# Started on time by cron-job.org, which calls GitHub's API with run=facts/story/ad (see README "On-time runs"):
+# 06:20 and 18:20 Manila (retries 07:10 / 19:10), Saturday ad 09:30 (retry 10:45). Videos are scheduled on
+# YouTube for 08:00 / 20:00 (ad 12:00); a run that finishes too late posts right away. Every automatic run
+# does nothing if that video was already uploaded in the last 9 hours, so a retry never makes a duplicate.
 name: Daily videos
 
 on:
-  schedule:
-    # Backups for the 06:20 / 18:20 on-time runs (they only act if the video is still missing).
-    - cron: "13 1 * * *"   # 09:13 Manila -> fun facts backup
-    - cron: "13 4 * * *"   # 12:13 Manila -> fun facts second backup
-    - cron: "13 13 * * *"  # 21:13 Manila -> story backup
-    - cron: "13 15 * * *"  # 23:13 Manila -> story second backup
-    # Saturday ad: GitHub run 05:13 (retry 08:13) plus the 09:30 on-time run; goes public at 12:00.
-    - cron: "13 21 * * 5"
-    - cron: "13 0 * * 6"
-    # Extra one-off ads: Sunday 05:13 Manila (+ retry 08:13), only on the dates in EXTRA_AD_DATES.
-    - cron: "13 21 * * 6"
-    - cron: "13 0 * * 0"
-  # On-time runs: an outside cron service (cron-job.org) calls GitHub's API with run=facts/story/ad at the
-  # exact time (see README "On-time runs"). The schedules above stay as backups; every automatic run skips
-  # itself if that video was already uploaded in the last 9 hours, so nothing is made twice.
   workflow_dispatch:
     inputs:
       run:
@@ -68,8 +53,6 @@ jobs:
       # Scheduled LogExpense ads: set ADS_PAUSED to "false" to run them every Saturday from ADS_START_DATE.
       ADS_PAUSED: "false"
       ADS_START_DATE: "2026-10-17"
-      # One-off extra ads on a Sunday (Manila dates, space-separated), on top of the Saturday ads.
-      EXTRA_AD_DATES: "2026-11-22"
       IMAGEIO_FFMPEG_EXE: /usr/bin/ffmpeg
       PYTHONIOENCODING: utf-8
     steps:
@@ -78,38 +61,25 @@ jobs:
       - name: Pick video type
         id: plan
         run: |
-          retry=false; retry_at=""; extra=false; auto=false
+          auto=false
           run_input="${{ inputs.run }}"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "$run_input" ] && [ "$run_input" != manual ]; then
-            # Started on time by the outside cron service: behaves like a scheduled run.
+          if [ -n "$run_input" ] && [ "$run_input" != manual ]; then
+            # Started on time by cron-job.org.
             style="$run_input"; upload=true; auto=true
-            echo "ACG_RETRY_NOTE=GitHub's backup runs will try again within a few hours." >> "$GITHUB_ENV"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
-          else
-            upload=true; auto=true
-            case "${{ github.event.schedule }}" in
-              "13 1 * * *")  style=facts; retry_at="12:13 PM" ;;
-              "13 4 * * *")  style=facts; retry=true ;;
-              "13 13 * * *") style=story; retry_at="11:13 PM" ;;
-              "13 15 * * *") style=story; retry=true ;;
-              "13 21 * * 5") style=ad; retry_at="8:13 AM" ;;
-              "13 0 * * 6")  style=ad; retry=true ;;
-              "13 21 * * 6") style=ad; extra=true; retry_at="8:13 AM" ;;
-              "13 0 * * 0")  style=ad; extra=true; retry=true ;;
+            now=$(TZ=Asia/Manila date +%H%M)
+            case "$style" in  # first run of the slot: say when the retry comes
+              facts) [ "$now" -lt 0700 ] && retry_at="7:10 AM" ;;
+              story) [ "$now" -ge 1200 ] && [ "$now" -lt 1900 ] && retry_at="7:10 PM" ;;
+              ad)    [ "$now" -lt 1030 ] && retry_at="10:45 AM" ;;
             esac
-          fi
-          if [ "$extra" = true ] && [[ " $EXTRA_AD_DATES " != *" $(TZ=Asia/Manila date +%F) "* ]]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "No extra ad scheduled for today (EXTRA_AD_DATES: ${EXTRA_AD_DATES:-none}) - skipping." | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "retry=$retry" >> "$GITHUB_OUTPUT"
-          if [ -n "$retry_at" ]; then
-            echo "ACG_RETRY_NOTE=A retry will run automatically at $retry_at (Manila)." >> "$GITHUB_ENV"
+            if [ -n "$retry_at" ]; then
+              echo "ACG_RETRY_NOTE=A retry will run automatically at $retry_at (Manila)." >> "$GITHUB_ENV"
+            fi
+          else
+            style="${{ inputs.style }}"; upload="${{ inputs.upload }}"
           fi
           if [ "$auto" = true ]; then
-            # Automatic runs (on-time trigger, GitHub schedule or retry) only make a video if no other run has
-            # uploaded this one in the last 9 hours.
+            # Automatic runs (main run or retry) only make a video if no other run has uploaded it in the last 9h.
             if python3 - "$style" <<'PY'
           import json, sys
           from datetime import datetime, timedelta, timezone

@@ -66,11 +66,11 @@ To change the logo, replace `assets/brand/logo_original.png` and ask Claude to r
 
 | Starts (Manila) | Makes | Goes public on YouTube |
 |---|---|---|
-| 06:20, by cron-job.org (GitHub backups 09:13, 12:13) | fun facts or feel-good science | 08:00 |
-| 18:20, by cron-job.org (GitHub backups 21:13, 23:13) | story, kind animals or kindness tradition | 20:00 |
-| Saturday 09:30, by cron-job.org (GitHub runs 05:13, 08:13) | LogExpense ad (~30s) (pause with `ADS_PAUSED: "true"` in the workflow) | Saturday 12:00 |
+| 06:20 (retry 07:10) | fun facts or feel-good science | 08:00 |
+| 18:20 (retry 19:10) | story, kind animals or kindness tradition | 20:00 |
+| Saturday 09:30 (retry 10:45) | LogExpense ad (~30s) (pause with `ADS_PAUSED: "true"` in the workflow) | Saturday 12:00 |
 
-GitHub starts scheduled runs 2-7 hours late, so its schedules are only backups for the on-time runs below. A run that finishes before the slot schedules the YouTube video for the slot; a run that's later than that posts it right away (never the next day). The retry only makes a video if the first run didn't upload one. Telegram shows "📅 Post on TikTok/Instagram: <day, time>" for every video. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 2 days, then deleted by `cleanup.yml`).
+The runs are started by cron-job.org (see *On-time runs* below); the workflow has no GitHub schedule, because GitHub starts scheduled runs 2-7 hours late. A run that finishes before the slot schedules the YouTube video for the slot; a run that's later than that posts it right away (never the next day). The retry only makes a video if the first run didn't upload one. Telegram shows "📅 Post on TikTok/Instagram: <day, time>" for every video. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 2 days, then deleted by `cleanup.yml`).
 
 Setup: GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**, add:
 
@@ -83,7 +83,7 @@ To test without waiting: Actions → **Daily videos** → **Run workflow** (leav
 
 ### On-time runs (cron-job.org, free)
 
-GitHub's own schedules start late, so an outside cron service starts the runs at the exact time by calling GitHub's API. The GitHub schedules above stay as backups. Every automatic run first checks `history.json` and does nothing if that video was already uploaded in the last 9 hours, so a video is never made twice.
+GitHub's own schedules start hours late, so cron-job.org starts every run at the exact time by calling GitHub's API. Every automatic run first checks `history.json` and does nothing if that video was already uploaded in the last 9 hours, so a retry never makes a second video.
 
 1. **GitHub token:** github.com → your photo → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**. Name it `cron-job`, set an expiration, **Repository access → Only select repositories → AI-Content-Generator**, **Permissions → Repository permissions → Actions: Read and write**. Copy the token.
 2. **cron-job.org:** sign up free, then **Create cronjob** for each row below:
@@ -105,6 +105,8 @@ Runs start a little after the hour or half hour on purpose, to stay clear of oth
 | LogExpense ad retry | Saturday 10:45 | `ad` | 12:00 |
 
 A successful call returns status `204` (or `200`) and a new run appears under **Actions**. The retry jobs cost nothing when the first run worked: they see the upload and stop within a minute.
+
+**One-off extra ad** (e.g. on a Sunday): add a cron-job with body `{"ref":"main","inputs":{"run":"ad"}}` for that date at 09:30, and delete it afterwards (or run it by hand: Actions → Daily videos → Run workflow → run: `ad`). It goes public at 12:00 that day.
 
 Videos that end on a statement (e.g. a story's lesson) get a ~5s follow-for-more ending, spoken and shown on screen, picked from 12 variations. Videos that end on a question stop there instead (sometimes adding a comments prompt), with no follow ending. The phrases come from 12 variations ("Follow for more videos like this!", "Hit follow so you don't miss the next one!", "Enjoyed this? Follow for more!", ...). An ending isn't reused until at least 6 other endings have been used. Change the phrases with `ACG_OUTROS` (separated by `|`) and the chance with `ACG_OUTRO_CHANCE` (default `0.5`). Use `--outro` to force it, or `--no-outro` to skip it.
 
