@@ -85,7 +85,7 @@ Videos that end on a statement (e.g. a story's lesson) get a ~5s follow-for-more
 
 ## Weekly product ad (LogExpense)
 
-Every Saturday the workflow makes a ~30s ad for [logexpense.site](https://logexpense.site) using `--style ad`. The script is written only from the product brief in [ads/logexpense.md](ads/logexpense.md), so ads never claim features that don't exist. **Update that file when the app changes** (new features, iOS launch, paid plans going live). Each week picks a different angle (audience, problem, feature) from `history.json`, and every ad ends with "Try it free at LOGEXPENSE.SITE". Captions say "Link in bio", so keep logexpense.site as the link in your TikTok and Instagram bios.
+Every Saturday the workflow makes a ~30s ad for [logexpense.site](https://logexpense.site) using `--style ad`. The script is written only from the product brief in [ads/logexpense.md](ads/logexpense.md), so ads never claim features that don't exist. **Update that file when the app changes** (new features, iOS launch, paid plans going live). Each week picks a different angle (audience, problem, feature) from `history.json`, and every ad ends with "Subukan nang libre sa logexpense.site" (Filipino). Captions say "Link in bio", so keep logexpense.site as the link in your TikTok and Instagram bios.
 
 Run one by hand:
 ```powershell

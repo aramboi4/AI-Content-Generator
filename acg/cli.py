@@ -203,8 +203,8 @@ def make(args: argparse.Namespace) -> None:
     ends_with_question = last.narration.rstrip().endswith("?") or "comment" in last.narration.lower()
     outro_text = outro_spoken = None
     if args.style == "ad":  # ads always end with the website call to action
-        outro_text = args.cta_text or (f"Subukan nang libre sa {args.website.upper()}" if args.language == "tl"
-                                       else f"Try it free at {args.website.upper()}")
+        outro_text = args.cta_text or (f"Subukan nang libre sa {args.website.lower()}" if args.language == "tl"
+                                       else f"Try it free at {args.website.lower()}")
         outro_spoken = args.cta_voice or outro_text
     elif ends_with_question:
         if "comment" not in last.narration.lower() and random.random() < config.COMMENT_CTA_CHANCE:

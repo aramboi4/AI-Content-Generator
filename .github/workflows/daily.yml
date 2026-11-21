@@ -162,7 +162,7 @@ jobs:
           if [ "$STYLE" = "ad" ]; then
             export ACG_TREND_REGION=PH   # ads target the Philippines first, in natural Filipino (Taglish)
             args+=(--brief ads/logexpense.md --website logexpense.site --seconds 30 --language tl
-                   --cta-text "Subukan nang libre sa LOGEXPENSE.SITE"
+                   --cta-text "Subukan nang libre sa logexpense.site"
                    --cta-voice "Subukan nang libre sa log expense dot site.")
           fi
           if [ "$UPLOAD" = "true" ]; then args+=(--upload); fi

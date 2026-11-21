@@ -45,6 +45,11 @@ def render_segment(clip: Path | None, duration: float, out: Path, zoom_out: bool
           "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)])
 
 
+def caps(text: str) -> str:
+    """Upper-cases on-screen text but keeps web addresses (e.g. logexpense.site) lowercase."""
+    return " ".join(w if re.search(r"[a-z0-9-]\.[a-z]{2,}", w, re.I) else w.upper() for w in text.split(" "))
+
+
 def pad_audio(src: Path, seconds: float) -> Path:
     """A copy of `src` with silence added at the end so it lasts `seconds` (same format, so it still joins
     with the other voice files)."""
@@ -93,11 +98,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     lines = []
     if title:  # translucent purple box with white text near the top, like a hook card
-        lines.append(f"Dialogue: 1,{_ass_time(0)},{_ass_time(title_secs)},Title,,0,0,0,,{{\\fad(0,300)}}{title.upper()}")
+        lines.append(f"Dialogue: 1,{_ass_time(0)},{_ass_time(title_secs)},Title,,0,0,0,,{{\\fad(0,300)}}{caps(title)}")
     if outro:  # "follow for more" card in the middle of the screen, popping in
         start, end, text = outro
         lines.append(f"Dialogue: 1,{_ass_time(start)},{_ass_time(end)},Outro,,0,0,0,,"
-                     rf"{{\fscx70\fscy70\t(0,160,\fscx100\fscy100)}}{text.upper()}")
+                     rf"{{\fscx70\fscy70\t(0,160,\fscx100\fscy100)}}{caps(text)}")
     groups: list[list[dict]] = []
     for w in words:  # never let a caption group span two scenes
         if groups and len(groups[-1]) < per_line and groups[-1][-1].get("scene") == w.get("scene"):
@@ -110,7 +115,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if i + 1 < len(groups):  # hold until the next group, unless there's a pause
             nxt = groups[i + 1][0]["start"]
             end = nxt if nxt - g[-1]["end"] <= 0.4 else min(end, nxt)
-        text = " ".join(w["text"] for w in g).upper().replace("{", "").replace("}", "")
+        text = caps(" ".join(w["text"] for w in g)).replace("{", "").replace("}", "")
         pop = r"{\fscx85\fscy85\t(0,90,\fscx100\fscy100)}"
         lines.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{pop}{text}")
     out.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
@@ -208,7 +213,7 @@ def render_card(text: str, out: Path, style: str = "classic", center_y: int | No
     pad_x, pad_y, gap = 48, 36, int(font_size * 0.22)
     draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     lines, line = [], ""
-    for word in text.upper().split():
+    for word in caps(text).split():
         trial = f"{line} {word}".strip()
         if line and draw.textlength(trial, font=font) > max_width - 2 * pad_x:
             lines.append(line)
