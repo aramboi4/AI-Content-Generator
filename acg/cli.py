@@ -377,8 +377,10 @@ def make(args: argparse.Namespace) -> None:
     branded = args.style != "ad"  # product ads stay separate from the channel brand
     pop = None
     if outro_at is not None:
-        card = render_card(outro_text, workdir / "card_outro.png", args.caption_style,
-                           center_y=HEIGHT // 2 + 120, font_size=80, max_width=990)
+        is_ad = args.style == "ad"  # the ad's website card is all lowercase, e.g. "subukan nang libre sa logexpense.site"
+        card = render_card(outro_text.lower() if is_ad else outro_text, workdir / "card_outro.png",
+                           args.caption_style, center_y=HEIGHT // 2 + 120, font_size=72 if is_ad else 80,
+                           max_width=1000, keep_case=is_ad)
         if logo.exists() and branded:  # channel logo pops in (CapCut-style) above the follow-for-more box
             badge = logo_badge(logo, workdir / "card_logo.png")
             from PIL import Image

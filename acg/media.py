@@ -45,9 +45,16 @@ def render_segment(clip: Path | None, duration: float, out: Path, zoom_out: bool
           "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)])
 
 
+URL_COLOR = "#FFD84D"  # highlight for web addresses on cards
+
+
+def _is_url(word: str) -> bool:
+    return bool(re.search(r"[a-z0-9-]\.[a-z]{2,}", word, re.I))
+
+
 def caps(text: str) -> str:
     """Upper-cases on-screen text but keeps web addresses (e.g. logexpense.site) lowercase."""
-    return " ".join(w if re.search(r"[a-z0-9-]\.[a-z]{2,}", w, re.I) else w.upper() for w in text.split(" "))
+    return " ".join(w if _is_url(w) else w.upper() for w in text.split(" "))
 
 
 def pad_audio(src: Path, seconds: float) -> Path:
@@ -203,9 +210,10 @@ def make_thumbnail(video: Path, out: Path, first_segment: Path | None = None, ti
 
 
 def render_card(text: str, out: Path, style: str = "classic", center_y: int | None = None,
-                top: int = 330, font_size: int = 92, max_width: int = 900) -> Path:
+                top: int = 330, font_size: int = 92, max_width: int = 900, keep_case: bool = False) -> Path:
     """One rounded purple box with the text wrapped and centered inside it (full-frame transparent PNG).
-    Drawn as a single shape, so multi-line text never produces overlapping per-line boxes."""
+    Drawn as a single shape, so multi-line text never produces overlapping per-line boxes.
+    keep_case: show the text exactly as written instead of in capitals."""
     from PIL import Image, ImageDraw, ImageFont
 
     font = ImageFont.truetype(str(FONTS_DIR / ("Anton-Regular.ttf" if style == "bold" else "ArchivoBlack-Regular.ttf")),
@@ -213,9 +221,10 @@ def render_card(text: str, out: Path, style: str = "classic", center_y: int | No
     pad_x, pad_y, gap = 48, 36, int(font_size * 0.22)
     draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     lines, line = [], ""
-    for word in caps(text).split():
+    for word in (text if keep_case else caps(text)).split():
         trial = f"{line} {word}".strip()
-        if line and draw.textlength(trial, font=font) > max_width - 2 * pad_x:
+        # A web address always starts its own line, so it stands out.
+        if line and (_is_url(word) or draw.textlength(trial, font=font) > max_width - 2 * pad_x):
             lines.append(line)
             line = word
         else:
@@ -231,9 +240,12 @@ def render_card(text: str, out: Path, style: str = "classic", center_y: int | No
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([x0, y0, x0 + box_w, y0 + box_h], radius=28, fill=CARD_FILL)
     y = y0 + pad_y
+    space = d.textlength(" ", font=font)
     for l in lines:
-        w = d.textlength(l, font=font)
-        d.text(((WIDTH - w) / 2, y), l, font=font, fill="white")
+        x = (WIDTH - d.textlength(l, font=font)) / 2
+        for word in l.split(" "):  # web addresses are highlighted in yellow
+            d.text((x, y), word, font=font, fill=URL_COLOR if _is_url(word) else "white")
+            x += d.textlength(word, font=font) + space
         y += line_h + gap
     img.save(out)
     return out
