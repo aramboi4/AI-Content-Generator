@@ -66,8 +66,8 @@ To change the logo, replace `assets/brand/logo_original.png` and ask Claude to r
 
 | Starts (Manila) | Makes | Goes public on YouTube |
 |---|---|---|
-| 08:10, by cron-job.org (GitHub backups 09:13, 12:13) | fun facts or feel-good science | as soon as it's ready, ~08:30-08:45 |
-| 20:10, by cron-job.org (GitHub backups 21:13, 23:13) | story, kind animals or kindness tradition | as soon as it's ready, ~20:30-20:45 |
+| 07:10, by cron-job.org (GitHub backups 09:13, 12:13) | fun facts or feel-good science | 08:10 |
+| 19:10, by cron-job.org (GitHub backups 21:13, 23:13) | story, kind animals or kindness tradition | 20:10 |
 | Saturday 09:30, by cron-job.org (GitHub runs 05:13, 08:13) | LogExpense ad (~30s) (pause with `ADS_PAUSED: "true"` in the workflow) | Saturday 12:00 |
 
 GitHub starts scheduled runs 2-7 hours late, so its schedules are only backups for the on-time runs below. A run that finishes before the slot schedules the YouTube video for the slot; a run that's later than that posts it right away (never the next day). The retry only makes a video if the first run didn't upload one. Telegram shows "📅 Post on TikTok/Instagram: <day, time>" for every video. `history.json` is committed after each run so topics don't repeat. For TikTok/Instagram, open the run under the repo's **Actions** tab: the posting guide is shown on the run page, and the video is under **Artifacts** (kept 2 days, then deleted by `cleanup.yml`).
@@ -95,10 +95,10 @@ GitHub's own schedules start late, so an outside cron service starts the runs at
 
 | Job | Time (Manila) | Body `run` | Goes public |
 |---|---|---|---|
-| Fun facts | every day 08:10 | `facts` | as soon as it's ready |
-| Fun facts retry | every day 08:55 | `facts` | as soon as it's ready |
-| Story | every day 20:10 | `story` | as soon as it's ready |
-| Story retry | every day 20:55 | `story` | as soon as it's ready |
+| Fun facts | every day 07:10 | `facts` | 08:10 |
+| Fun facts retry | every day 07:40 | `facts` | 08:10 (or right away if later) |
+| Story | every day 19:10 | `story` | 20:10 |
+| Story retry | every day 19:40 | `story` | 20:10 (or right away if later) |
 | LogExpense ad | Saturday 09:30 | `ad` | 12:00 |
 | LogExpense ad retry | Saturday 10:45 | `ad` | 12:00 |
 
