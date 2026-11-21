@@ -139,7 +139,8 @@ def make(args: argparse.Namespace) -> None:
     for draft in range(3):
         pkg = write_package(args.niche, args.topic, research, args.seconds, args.style,
                             avoid=past, avoid_hooks=history.recent_hooks(),
-                            brief=brief, website=args.website or "", ending=ending, not_again=not_again)
+                            brief=brief, website=args.website or "", ending=ending, not_again=not_again,
+                            language=args.language)
         if args.topic or args.style == "ad":
             break
         # The writer sometimes ignores the "already covered" list and retells a story under a new title.
@@ -156,6 +157,14 @@ def make(args: argparse.Namespace) -> None:
             _warn(f'The script may repeat an earlier video ("{repeat}"); 3 drafts in a row did.')
     if writer_mod.LAST_WRITER != "Gemini":
         _warn(f"Gemini was unavailable, so the script was written by the backup: {writer_mod.LAST_WRITER}.")
+    if args.language == "tl":  # a native-speaker pass so nothing sounds like Google Translate
+        writer = writer_mod.LAST_WRITER
+        try:
+            changed = writer_mod.polish_filipino(pkg, brief)
+            print(f"    Filipino polish: {changed} line(s) made more natural")
+        except Exception as e:
+            _warn(f"The Filipino wording check was skipped ({type(e).__name__}); the first draft was used.")
+        writer_mod.LAST_WRITER = writer
     if args.style != "ad":  # the matching call to action is added below; drop any the model wrote itself
         from .writer import strip_cta
         pkg.scenes[-1].narration = strip_cta(pkg.scenes[-1].narration)
@@ -179,7 +188,8 @@ def make(args: argparse.Namespace) -> None:
     ends_with_question = last.narration.rstrip().endswith("?") or "comment" in last.narration.lower()
     outro_text = outro_spoken = None
     if args.style == "ad":  # ads always end with the website call to action
-        outro_text = args.cta_text or f"Try it free at {args.website.upper()}"
+        outro_text = args.cta_text or (f"Subukan nang libre sa {args.website.upper()}" if args.language == "tl"
+                                       else f"Try it free at {args.website.upper()}")
         outro_spoken = args.cta_voice or outro_text
     elif ends_with_question:
         if "comment" not in last.narration.lower() and random.random() < config.COMMENT_CTA_CHANCE:
@@ -192,7 +202,7 @@ def make(args: argparse.Namespace) -> None:
     if outro_text:
         print(f"    ending: {outro_text!r}")
     narrations = [s.narration for s in pkg.scenes] + ([outro_spoken] if outro_spoken else [])
-    voices = synthesize_scenes(narrations, args.voice, workdir, rate)
+    voices = synthesize_scenes(narrations, args.voice, workdir, rate, language=args.language)
     engine = voices[0]["engine"] if voices else ""
     print(f"    voice: {engine}")
     inworld_error = voices[0].get("inworld_error") if voices else None
@@ -215,11 +225,12 @@ def make(args: argparse.Namespace) -> None:
               f"{'facts' if args.style == 'facts' else 'scenes'}...")
         STATE["stage"] = "lengthen"
         try:
-            at, extra = extend_package(pkg, args.style, args.min_seconds - content + 2)
+            at, extra = extend_package(pkg, args.style, args.min_seconds - content + 2, language=args.language)
             if not extra:
                 continue
             extra_voices = synthesize_scenes([s.narration for s in extra], args.voice, workdir, rate,
-                                             prefix=f"extra{round_}", engine=voices[0]["engine"])
+                                             prefix=f"extra{round_}", engine=voices[0]["engine"],
+                                             language=args.language)
         except Exception as e:  # a shorter video is better than no video
             _warn(f"Couldn't add extra scenes ({type(e).__name__}: {str(e)[:120]}) - the video is a bit shorter "
                   f"than {args.min_seconds}s.")
@@ -429,6 +440,8 @@ def main() -> None:
                    help="fun facts (fast, punchy), inspiring story (slower, narrative), or product ad (needs --brief)")
     m.add_argument("--brief", help="Product brief file for --style ad, e.g. ads/logexpense.md")
     m.add_argument("--website", help="Website for --style ad, e.g. logexpense.site")
+    m.add_argument("--language", default="en", choices=["en", "tl"],
+                   help="en: English (default); tl: natural Filipino/Taglish script with Gemini's Filipino voice")
     m.add_argument("--cta-text", help='Ad ending shown on screen (default "Try it free at <WEBSITE>")')
     m.add_argument("--cta-voice", help="Ad ending as spoken (e.g. spell the site out for the voice)")
     m.add_argument("--topic", help="Specific topic; omit to let it pick from current trends")

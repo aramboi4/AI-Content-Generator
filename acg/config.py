@@ -39,6 +39,7 @@ USE_MICROSOFT_VOICE = os.getenv("ACG_USE_MICROSOFT_VOICE", "0") == "1"
 KOKORO_DIR = ROOT / "assets" / "kokoro"  # model downloaded here on first use (~340 MB, not in git)
 PIPER_VOICE = os.getenv("ACG_PIPER_VOICE", "en_US-ryan-medium")  # fallback voice if edge-tts is blocked
 WHISPER_DIR = ROOT / "assets" / "whisper"  # speech model for exact caption timing (~140 MB, not in git)
+GEMINI_VOICE = os.getenv("ACG_GEMINI_VOICE", "Puck")  # Gemini text-to-speech voice for Filipino (Tagalog) videos
 PIPER_DIR = ROOT / "assets" / "piper"  # model downloaded here on first use (~60 MB, not in git)
 # Follow-for-more ending: added to videos that DON'T end on a question (questions get a comments prompt
 # instead), with probability OUTRO_CHANCE. One phrase picked at random ("|"-separated).

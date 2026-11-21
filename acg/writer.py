@@ -336,9 +336,69 @@ def find_repeat(pkg: VideoPackage, style: str, past: list[str]) -> str:
     return found if found in past else next((t for t in past if found and found.lower() in t.lower()), "")
 
 
+FILIPINO_RULES = """- Language: natural, conversational Filipino, the way people in Metro Manila actually talk and post online:
+  everyday Tagalog mixed with the English words Filipinos normally say in English (Taglish), e.g.
+  "Ubos na naman ang sweldo bago mag-kinsenas?", "I-track mo lahat ng gastos ninyo sa isang app."
+  Write it the way a Filipino copywriter would from scratch. Never translate an English draft word for word.
+- Avoid deep or formal Tagalog nobody says in daily life (e.g. "salapi", "nais", "mangyaring", "kasangkapan",
+  "talaan ng gastusin", "pamamahala ng pananalapi"). Use common words and spellings (sweldo, gastos, utang,
+  ipon, bayarin, padala). Keep in English: brand names, the website, feature names from the brief, and words
+  like budget, expenses, bills, app, workspace, loan, track.
+- narration, on_screen_title, the YouTube title and description, and the captions are all in this Filipino.
+  image_prompt and visual_queries stay in English (they go to image and stock-search tools).
+- Short sentences, no emojis, no stage directions."""
+SPOKEN = {"en": "plain spoken English", "tl": "natural conversational Filipino (Taglish), never word-for-word translated"}
+
+
+class FilipinoPolish(BaseModel):
+    narrations: list[str] = Field(description="Every narration line, same count and order as given")
+    on_screen_title: str
+    youtube_title: str
+    tiktok_caption: str
+    instagram_caption: str
+
+
+def polish_filipino(pkg: VideoPackage, brief: str = "") -> int:
+    """A second pass by a 'native Manila copywriter' that rewrites lines that sound translated, formal or
+    unnatural. Changes pkg in place; returns how many narration lines changed (0 if the check failed)."""
+    data = {"narrations": [s.narration for s in pkg.scenes], "on_screen_title": pkg.tiktok.on_screen_title,
+            "youtube_title": pkg.youtube.title, "tiktok_caption": pkg.tiktok.caption,
+            "instagram_caption": pkg.instagram.caption}
+    prompt = (
+        "You are a native Filipino copywriter from Metro Manila who writes viral TikTok ads. Review this ad copy. "
+        "Rewrite any phrase that sounds like Google Translate, textbook or formal (malalim) Tagalog, or awkward, "
+        "into what a Filipino would actually say: natural everyday Tagalog with common English words mixed in "
+        "(Taglish). Leave lines that already sound natural unchanged.\n"
+        "Rules: keep the meaning, every claim and every peso amount; add no new claims; keep each line about the "
+        "same length; keep brand names, the website and hashtags exactly as they are; keep the YouTube title "
+        "ending with #Shorts; no emojis in on_screen_title; return exactly the same number of narration lines in "
+        "the same order.\n"
+        + (f"Also check every claim against the product brief below. Rewrite any line that claims something the "
+           f"brief says is not available or must not be said (e.g. instant or real-time updates) so it only says "
+           f"what the brief allows.\n<brief>\n{brief}\n</brief>\n" if brief else "")
+        + "\n" + json.dumps(data, ensure_ascii=False, indent=2))
+    fixed = _structured(prompt, FilipinoPolish)
+    if len(fixed.narrations) != len(pkg.scenes) or not all(n.strip() for n in fixed.narrations):
+        return 0
+    changed = 0
+    for scene, line in zip(pkg.scenes, fixed.narrations):
+        changed += scene.narration.strip() != line.strip()
+        scene.narration = line.strip()
+    pkg.tiktok.on_screen_title = fixed.on_screen_title or pkg.tiktok.on_screen_title
+    # The title-card fonts have no emoji, so they'd show as empty boxes.
+    pkg.tiktok.on_screen_title = re.sub(r"[\U0001F000-\U0001FFFF☀-➿️]", "",
+                                        pkg.tiktok.on_screen_title).strip()
+    if fixed.youtube_title.rstrip().endswith("#Shorts"):
+        pkg.youtube.title = fixed.youtube_title
+    pkg.tiktok.caption = fixed.tiktok_caption or pkg.tiktok.caption
+    pkg.instagram.caption = fixed.instagram_caption or pkg.instagram.caption
+    return changed
+
+
 def write_package(niche: str, topic: str | None, research: str, target_seconds: int, style: str = "facts",
                   avoid: list[str] = (), avoid_hooks: list[str] = (), brief: str = "",
-                  website: str = "", ending: str = "statement", not_again: list[str] = ()) -> VideoPackage:
+                  website: str = "", ending: str = "statement", not_again: list[str] = (),
+                  language: str = "en") -> VideoPackage:
     """ending: "question" (last line asks viewers something) or "statement" (last line is the lesson/payoff)."""
     hook = random.choice(HOOKS[style])
     recent = "\n".join(f"  - {h}" for h in avoid_hooks)
@@ -375,7 +435,8 @@ Script rules:
 - Hook type for this video: {hook}.
 - Never open with "Did you know", "There's an old story", "Have you ever", "Imagine", or "Think again".
 {"- Recent openings - don't reuse their wording or sentence pattern:" + chr(10) + recent if recent else ""}
-- Plain spoken English, short sentences, no emojis, no stage directions, no "in this video".
+{FILIPINO_RULES if language == "tl" else "- Plain spoken English, short sentences, no emojis, no stage directions."}
+- No "in this video".
 - In `narration`, refer to people naturally by name or as he/she. The words "the character" are ONLY for
   image_prompt and must never appear in narration, titles or captions.
 - Never add calls to action yourself (follow, subscribe, like, share, comment) - they are added automatically.
@@ -428,7 +489,8 @@ EXTEND_RULES = {
 }
 
 
-def extend_package(pkg: VideoPackage, style: str, missing_seconds: float) -> tuple[int, list[Scene]]:
+def extend_package(pkg: VideoPackage, style: str, missing_seconds: float,
+                   language: str = "en") -> tuple[int, list[Scene]]:
     """Writes extra scenes when the video came out too short. Returns (insert index, new scenes)."""
     n = max(1, min(3, round(missing_seconds / 6)))
     words = int(missing_seconds * WORDS_PER_SECOND[style] * VOICE_PACE) + 5
@@ -441,7 +503,7 @@ Current script (one line per scene):
 {EXTEND_RULES[style].format(n=n)}
 Return ONLY the {n} new scene(s) - do not repeat or include any existing scene.
 Write about {words} words of narration in total across the new scenes, in the same voice and style:
-plain spoken English, short sentences, no emojis, no stage directions. Each new scene needs narration,
+{SPOKEN.get(language, SPOKEN["en"])}, short sentences, no emojis, no stage directions. Each new scene needs narration,
 visual_queries (simple literal stock-footage words) and image_prompt, like the existing scenes."""
     extra = _structured(prompt, ExtraScenes)
     fix_narration(extra.scenes, pkg.character)

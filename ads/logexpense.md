@@ -8,15 +8,15 @@ Only claims listed here may be used in ads. Update this file when the product ch
 **What it is:** A shared expense, loan, and budget tracker for families, roommates, and small teams who want one place to track money together.
 
 ## Target audience
-Mainly the **Philippines**, but anyone is welcome, so keep the narration in clear English (no Tagalog in the
-voiceover; the voice can't pronounce it well) and use Filipino everyday situations, for example:
+Mainly the **Philippines**. The ad is written in natural, conversational Filipino (Taglish), the way people in
+Metro Manila actually talk, never word-for-word translated English, and uses Filipino everyday situations, for example:
 - Sweldo on the 15th and 30th (kinsenas/katapusan) and where it all went
 - Paying back utang to relatives or friends, or lending to family
 - Splitting the Meralco/water bill and rent with roommates or in a boarding house/bedspace
 - Family budgets for groceries, tuition, and padala from an OFW family member
 - Keeping track of GCash, Maya, bank and cash balances in one place (entered manually)
 - Amounts in pesos (₱)
-Captions may add a short, natural Taglish line, and should mix Filipino hashtags (e.g. #budgetingph,
+Captions are in the same natural Taglish and should mix Filipino hashtags (e.g. #budgetingph,
 #ipon, #pinoy, #moneytipsph) with global ones (e.g. #budgeting, #personalfinance).
 
 ## Privacy message (use when asked to include it)

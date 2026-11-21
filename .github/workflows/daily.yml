@@ -141,7 +141,7 @@ jobs:
             assets/kokoro
             assets/piper
             assets/whisper
-          key: voices-kokoro-v1.0-piper-ryan-whisper-base-en
+          key: voices-kokoro-v1.0-piper-ryan-whisper-base-en-base   # base = multilingual, for Filipino ads
 
       - name: Make video
         if: steps.plan.outputs.skip != 'true'
@@ -154,9 +154,10 @@ jobs:
           # Scheduled for today's slot if it's still ahead; posted publicly right away if the run is late.
           args=(--niche "$NICHE" --style "$STYLE" --publish-slot "$PUBLISH")
           if [ "$STYLE" = "ad" ]; then
-            export ACG_TREND_REGION=PH   # ads target the Philippines first
-            args+=(--brief ads/logexpense.md --website logexpense.site --seconds 30
-                   --cta-voice "Try it free at log expense dot site.")
+            export ACG_TREND_REGION=PH   # ads target the Philippines first, in natural Filipino (Taglish)
+            args+=(--brief ads/logexpense.md --website logexpense.site --seconds 30 --language tl
+                   --cta-text "Subukan nang libre sa LOGEXPENSE.SITE"
+                   --cta-voice "Subukan nang libre sa log expense dot site.")
           fi
           if [ "$UPLOAD" = "true" ]; then args+=(--upload); fi
           python -m acg make "${args[@]}"

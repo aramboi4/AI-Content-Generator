@@ -21,7 +21,7 @@ import numpy as np
 import requests
 
 from .config import (INWORLD_API_KEY, INWORLD_MODEL, INWORLD_VOICES, KOKORO_DIR, KOKORO_MATCH, KOKORO_SPEED, USE_MICROSOFT_VOICE,
-                     PIPER_DIR, PIPER_VOICE, WHISPER_DIR)
+                     PIPER_DIR, PIPER_VOICE, WHISPER_DIR, GEMINI_VOICE)
 
 
 def inworld_available() -> bool:
@@ -119,25 +119,25 @@ def _estimate_words(text: str, duration: float) -> list[dict]:
     return words
 
 
-_whisper = None
+_whisper: dict = {}  # model name -> loaded model
 
 
-def _timed_words(text: str, audio: Path) -> list[dict]:
-    """Word timings for engines that don't report them (Kokoro, Piper): Whisper listens to the audio to find
-    when each word is spoken, while the words themselves always come from the script. Words Whisper missed
+def _timed_words(text: str, audio: Path, language: str = "en") -> list[dict]:
+    """Word timings for engines that don't report them (Kokoro, Piper, Gemini): Whisper listens to the audio to
+    find when each word is spoken, while the words themselves always come from the script. Words Whisper missed
     are placed between their neighbours. Falls back to an estimate if Whisper isn't available."""
-    global _whisper
     duration = probe_duration(audio)
+    name = "base.en" if language == "en" else "base"  # the multilingual model handles Filipino
     try:
-        if _whisper is None:
+        if name not in _whisper:
             from faster_whisper import WhisperModel
             WHISPER_DIR.mkdir(parents=True, exist_ok=True)
-            _whisper = WhisperModel("base.en", device="cpu", compute_type="int8", download_root=str(WHISPER_DIR))
+            _whisper[name] = WhisperModel(name, device="cpu", compute_type="int8", download_root=str(WHISPER_DIR))
         # Decode with FFmpeg and pass raw samples: faster-whisper's own file decoding breaks on PyAV 19.
         raw = subprocess.run([FFMPEG, "-v", "error", "-i", str(audio), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"],
                              capture_output=True, check=True).stdout
         samples = np.frombuffer(raw, np.int16).astype(np.float32) / 32768
-        segments, _ = _whisper.transcribe(samples, language="en", word_timestamps=True, beam_size=1,
+        segments, _ = _whisper[name].transcribe(samples, language=language, word_timestamps=True, beam_size=1,
                                           initial_prompt=text)
         heard = [w for seg in segments for w in seg.words]
     except Exception as e:
@@ -171,6 +171,54 @@ def _timed_words(text: str, audio: Path) -> list[dict]:
             words[k]["start"], words[k]["end"] = lo + step * (k - i), lo + step * (k - i + 1)
         i = j
     return words
+
+
+GEMINI_TTS_MODELS = ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts-preview"]
+GEMINI_TTS_STYLE = {
+    "tl": "Say this in natural, conversational Filipino (Taglish), like a friendly Pinoy vlogger recommending an "
+          "app to a friend: upbeat, warm and clear, at a lively pace",
+}
+
+
+def _gemini_tts(text: str, voice: str, language: str, out: Path) -> None:
+    """One line with Gemini's text-to-speech (free Gemini key; speaks Filipino). Tries each TTS model, waiting
+    out short rate limits."""
+    from google.genai import types
+    from .writer import client
+
+    style = GEMINI_TTS_STYLE.get(language, "Say this in a friendly, natural voice")
+    config = types.GenerateContentConfig(
+        response_modalities=["AUDIO"],
+        speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))))
+    error = None
+    for model in GEMINI_TTS_MODELS:
+        for wait in (0, 20, 40):
+            time.sleep(wait)
+            try:
+                r = client.models.generate_content(model=model, contents=f"{style}: {text}", config=config)
+                pcm = r.candidates[0].content.parts[0].inline_data.data
+                with wave.open(str(out), "wb") as w:  # raw 24 kHz 16-bit mono
+                    w.setnchannels(1)
+                    w.setsampwidth(2)
+                    w.setframerate(24000)
+                    w.writeframes(pcm)
+                return
+            except Exception as e:
+                error = e
+                if not any(c in str(e) for c in ("429", "503", "500")):
+                    break  # not a busy/rate-limit error: try the next model
+    raise RuntimeError(f"Gemini voice failed: {type(error).__name__}: {str(error)[:200]}")
+
+
+def _gemini_all(narrations: list[str], voice: str, language: str,
+                paths: list[Path]) -> list[tuple[Path, list[dict]]]:
+    out = []
+    for text, path in zip(narrations, paths):
+        path = path.with_suffix(".wav")
+        _gemini_tts(text, voice, language, path)
+        out.append((path, _timed_words(text, path, language)))
+    return out
 
 
 def _piper_all(narrations: list[str], rate: str, workdir: Path, prefix: str = "voice") -> list[tuple[Path, list[dict]]]:
@@ -225,7 +273,7 @@ def _kokoro_all(narrations: list[str], kvoice: str, rate: str, workdir: Path,
 
 
 def synthesize_scenes(narrations: list[str], voice: str, workdir: Path, rate: str = "+8%",
-                      prefix: str = "voice", engine: str | None = None) -> list[dict]:
+                      prefix: str = "voice", engine: str | None = None, language: str = "en") -> list[dict]:
     """Returns per scene: {"audio", "duration", "words", "engine"} with scene-local timings.
 
     Order: Inworld (Clive or Dennis, picked at random) -> Microsoft edge-tts -> Kokoro (closest match to
@@ -236,8 +284,12 @@ def synthesize_scenes(narrations: list[str], voice: str, workdir: Path, rate: st
     def result(pairs, eng, **extra):
         return [{"audio": p, "duration": probe_duration(p), "words": w, "engine": eng, **extra} for p, w in pairs]
 
+    if language != "en" and not engine:  # only Gemini's voice speaks Filipino well (Kokoro/Piper are English-only)
+        engine = f"gemini:{GEMINI_VOICE}"
     if engine:  # reuse the voice chosen earlier for this video
         kind, _, name = engine.partition(":")
+        if kind == "gemini":
+            return result(_gemini_all(narrations, name, language, paths), engine)
         if kind == "inworld":
             return result(zip(paths, [_inworld_synth(t, name, rate, p) for t, p in zip(narrations, paths)]), engine)
         if kind == "edge-tts":
