@@ -45,6 +45,14 @@ def render_segment(clip: Path | None, duration: float, out: Path, zoom_out: bool
           "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(FPS), str(out)])
 
 
+def pad_audio(src: Path, seconds: float) -> Path:
+    """A copy of `src` with silence added at the end so it lasts `seconds` (same format, so it still joins
+    with the other voice files)."""
+    out = src.with_name(f"{src.stem}_padded{src.suffix}")
+    _run(["-i", src.name, "-af", f"apad=whole_dur={seconds:.2f}", out.name], cwd=src.parent)
+    return out
+
+
 def concat_audio(parts: list[Path], out: Path) -> None:
     listfile = out.with_suffix(".txt")
     listfile.write_text("".join(f"file '{p.name}'\n" for p in parts), encoding="utf-8")

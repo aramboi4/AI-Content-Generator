@@ -133,6 +133,12 @@ jobs:
         if: steps.plan.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
+      - name: Install a browser for the ad's website screenshots
+        if: steps.plan.outputs.skip != 'true' && steps.plan.outputs.style == 'ad'
+        run: |
+          pip install playwright==1.65.2
+          python -m playwright install --with-deps chromium
+
       - name: Cache voice and speech models (Kokoro, Piper, Whisper)
         if: steps.plan.outputs.skip != 'true'
         uses: actions/cache@v6

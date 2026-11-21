@@ -119,6 +119,8 @@ class Scene(BaseModel):
         "One-sentence image prompt showing exactly what this scene's narration says: who/what is shown, action, "
         "setting, camera framing. If the main character appears, write 'the character' (their look is defined "
         "separately)."))
+    shows_app: bool = Field(default=False, description=(
+        "Ads only: true when a person is using the product's app on a smartphone in this scene"))
 
 
 class YouTubePost(BaseModel):
@@ -205,7 +207,10 @@ STYLE_RULES = {
   "Ad: roommates arguing over who paid the electric bill -> shared workspace".
 - Only claim what the brief lists as available. Never invent statistics, reviews, user counts, or prices.
   Mention it's free to start. Never mention features the brief lists as not available yet.
-- Talk to the viewer ("you"), conversational, like a friend recommending it - not a TV announcer.""",
+- Talk to the viewer ("you"), conversational, like a friend recommending it - not a TV announcer.
+- In 1-2 scenes where the product is shown, set shows_app true and make image_prompt a person holding a
+  smartphone upright with its screen facing the camera, the phone large and clearly visible in the frame, the
+  screen plain, bright and blank (the real app screen is added afterwards). All other scenes: shows_app false.""",
 }
 # How the script must end; the matching call to action is added afterwards in code.
 ENDING_RULES = {
@@ -546,6 +551,12 @@ def pick_clip(narration: str, images: list[bytes]) -> tuple[int | None, int]:
     if pick.best < 1 or pick.best > len(images) or pick.score <= 1:
         return None, pick.score
     return pick.best - 1, pick.score
+
+
+class PhoneScreen(BaseModel):
+    found: bool
+    corners: list[list[int]] = Field(default_factory=list,
+                                     description="4 [y, x] points, 0-1000: top-left, top-right, bottom-right, bottom-left")
 
 
 class ImageCheck(BaseModel):

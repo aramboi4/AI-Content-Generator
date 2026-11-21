@@ -40,6 +40,19 @@ def check_recent(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
+def refresh_screens(args: argparse.Namespace) -> None:
+    import tempfile
+    from pathlib import Path
+    from .screens import SAVED, capture, save_reference_copies
+    with tempfile.TemporaryDirectory() as tmp:
+        shots = capture(args.website, Path(tmp))
+        if not shots or shots[0].parent == SAVED:
+            sys.exit(f"Couldn't screenshot {args.website} - is Playwright installed (pip install playwright, "
+                     "python -m playwright install chromium)?")
+        save_reference_copies(shots)
+    print(f"Saved {len(shots)} screenshot(s) to {SAVED}")
+
+
 def telegram_setup(args: argparse.Namespace) -> None:
     from . import notify
     if not config.TELEGRAM_BOT_TOKEN:
@@ -69,6 +82,8 @@ def _publish_at(args: argparse.Namespace) -> str | None:
         return _slot_time(args.publish_slot)
     return _next_publish_time(args.publish_next) if args.publish_next else args.publish_at
 
+
+AD_LINK_SECONDS = 4.5  # ads end with the website card on screen for at least this long
 
 # Current step and non-fatal problems, reported to Telegram by main().
 STATE: dict = {"stage": "setup", "warnings": []}
@@ -257,6 +272,11 @@ def make(args: argparse.Namespace) -> None:
         sys.exit("--visuals ai needs CF_ACCOUNT_ID and CF_API_TOKEN in .env (see README).")
     source = provider()
     char_ref = None
+    app_screens, placed = [], 0
+    if visuals == "ai" and args.style == "ad" and args.website and any(s.shows_app for s in pkg.scenes):
+        from .screens import all_screens, place_on_phone
+        app_screens = all_screens(args.website, workdir)
+        print(f"    {len(app_screens)} app screen(s) ready for the phone scenes")
     if visuals == "ai":
         print("4/6 Generating AI scene images and rendering scenes...")
         try:  # a head-and-shoulders reference keeps the face and clothes without pinning the pose
@@ -286,6 +306,13 @@ def make(args: argparse.Namespace) -> None:
                                                        refs=[char_ref] if has_character else [],
                                                        seed=args.seed + i + 1, plan=scene.image_prompt)
                 print(f"    scene {i + 1}: {review}")
+                if scene.shows_app and app_screens:  # put the real website on the phone in the picture
+                    try:
+                        skipped = place_on_phone(clip, app_screens[placed % len(app_screens)])
+                    except Exception as e:
+                        skipped = f"{type(e).__name__}: {str(e)[:80]}"
+                    placed += not skipped
+                    print(f"    scene {i + 1}: app screen " + (f"not added ({skipped})" if skipped else "added to the phone"))
             except Exception as e:  # e.g. daily free allowance used up: fall back to stock footage
                 image_fails += 1
                 print(f"    scene {i + 1}: image failed ({str(e)[:100]})")
@@ -324,6 +351,11 @@ def make(args: argparse.Namespace) -> None:
         _warn(f"No matching footage for {unmatched} of {len(pkg.scenes)} scenes - clips were reused.")
 
     outro_at = None
+    if outro and args.style == "ad" and outro[0]["duration"] < AD_LINK_SECONDS:
+        # Keep the website on screen long enough to read and type: pad the call to action with quiet time.
+        from .media import pad_audio
+        outro[0]["audio"] = pad_audio(outro[0]["audio"], AD_LINK_SECONDS)
+        outro[0]["duration"] = AD_LINK_SECONDS
     if outro:  # call to action over the last clip, shown as a text card instead of captions
         outro_at = t
         seg = workdir / "seg_outro.mp4"
@@ -474,12 +506,15 @@ def main() -> None:
     u.add_argument("--publish-at", help="Schedule YouTube publish, ISO UTC e.g. 2026-10-05T17:00:00Z")
     u.add_argument("--publish-next", metavar="HH:MM", help="Schedule for the next HH:MM local time")
     sub.add_parser("telegram-setup", help="Print your Telegram chat id (after messaging your bot once)")
+    sc = sub.add_parser("screens", help="Refresh the saved phone screenshots of the ad's website (ads/screens)")
+    sc.add_argument("--website", default="logexpense.site")
     c = sub.add_parser("check", help="Exit 0 if a video of this style was uploaded recently (used by retry runs)")
     c.add_argument("--style", required=True, choices=["facts", "story", "ad"])
     c.add_argument("--hours", type=float, default=6)
     args = p.parse_args()
     try:
-        {"make": make, "upload": upload_existing, "telegram-setup": telegram_setup, "check": check_recent}[args.cmd](args)
+        {"make": make, "upload": upload_existing, "telegram-setup": telegram_setup, "check": check_recent,
+         "screens": refresh_screens}[args.cmd](args)
     except KeyboardInterrupt:
         sys.exit(130)
     except Exception as exc:
@@ -490,7 +525,7 @@ def main() -> None:
 def _report_failure(args: argparse.Namespace, exc: Exception) -> None:
     """Tell the phone what broke. Leaves a marker so the workflow doesn't send a second, vaguer alert."""
     from . import notify
-    if args.cmd == "telegram-setup" or not notify.enabled():
+    if args.cmd in ("telegram-setup", "screens") or not notify.enabled():
         return
     what = f"{args.style.title()} video" if args.cmd == "make" else "Upload"
     try:
