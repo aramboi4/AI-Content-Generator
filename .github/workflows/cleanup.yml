@@ -1,10 +1,9 @@
-# Deletes finished workflow runs older than 2 days (logs and saved videos), every day.
+# Deletes finished workflow runs older than 2 days (logs and saved videos).
+# Started daily by cron-job.org (no GitHub schedule).
 # The voice-model cache and history.json are not affected.
 name: Clean up old runs
 
 on:
-  schedule:
-    - cron: "37 3 * * *"   # 11:37 Manila, away from the video runs
   workflow_dispatch:
 
 permissions:

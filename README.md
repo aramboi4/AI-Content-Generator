@@ -99,10 +99,12 @@ GitHub's own schedules start hours late, so cron-job.org starts every run at the
 | Fun facts retry | every day 07:10 | `facts` | 08:00 (or right away if later) |
 | Story | every day 18:20 | `story` | 20:00 |
 | Story retry | every day 19:10 | `story` | 20:00 (or right away if later) |
-
-Runs start a little after the hour or half hour on purpose, to stay clear of other jobs that start on the hour.
 | LogExpense ad | Saturday 09:30 | `ad` | 12:00 |
 | LogExpense ad retry | Saturday 10:45 | `ad` | 12:00 |
+
+Runs start a little after the hour or half hour on purpose, to stay clear of other jobs that start on the hour.
+
+**Cleanup of old runs:** one more job, once a day (e.g. 11:37), with the same headers but URL `.../actions/workflows/cleanup.yml/dispatches` and body `{"ref":"main"}` (no `inputs`, or GitHub answers 422).
 
 A successful call returns status `204` (or `200`) and a new run appears under **Actions**. The retry jobs cost nothing when the first run worked: they see the upload and stop within a minute.
 
