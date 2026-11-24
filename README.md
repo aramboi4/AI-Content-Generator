@@ -104,7 +104,7 @@ GitHub's own schedules start hours late, so cron-job.org starts every run at the
 
 Runs start a little after the hour or half hour on purpose, to stay clear of other jobs that start on the hour.
 
-**Cleanup of old runs:** one more job, once a day (e.g. 11:37), with the same headers but URL `.../actions/workflows/cleanup.yml/dispatches` and body `{"ref":"main"}` (no `inputs`, or GitHub answers 422).
+**Cleanup of old runs:** one more job, once a day (e.g. 11:37), with the same headers but URL `.../actions/workflows/cleanup.yml/dispatches` and body `{"ref":"main","inputs":{"keep_days":"2"}}` (days of runs to keep; 2 if left out). Saved videos expire after 3 days regardless (`retention-days` in `daily.yml`).
 
 A successful call returns status `204` (or `200`) and a new run appears under **Actions**. The retry jobs cost nothing when the first run worked: they see the upload and stop within a minute.
 
